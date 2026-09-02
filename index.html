@@ -1,0 +1,431 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Mantenimiento preventivo y correctivo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="image">
+        <img src="logo cc.soul.jpg" alt="Logo" width="50" height="50"> 
+        <h1>CCS.CATERING</h1>
+    </div>
+
+    <div class="container">
+        <h1> GERENCIA DE SEGURIDAD INDUSTRIAL Y MANTENIMIENTO</h1>
+        <P>Reporte de averias/ Reporte de mantenimiento preventivo</P>
+        <br>
+
+        <div id="loginSection">
+            <div class="form-group">
+                <label for="codigoTecnico">Usuario</label>
+                <input type="text" id="codigoTecnico" placeholder="Ingresa tu cedula o codigo de averia" maxlength="20">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-primary" id="btnLogin">Ingresar</button>
+            </div>
+            <p id="loginError" style="color:#ef4444;font-size:0.85rem;display:none;margin-top:10px;">Codigo no valido.</p>
+        </div>
+
+        <form id="checkinForm" style="display:none;" novalidate>
+            <p id="tecnicoInfo" style="background:#e8f5e9;padding:10px;border-radius:8px;font-weight:600;color:#2e7d32;margin-bottom:20px;"></p>
+
+            <div id="paso1">
+                <div class="form-group">
+                    <label for="sedes">Sede</label>
+                    <select id="sedes" name="sedes" required>
+                        <option value="" disabled selected>Seleccionar sede...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="zonaGroup" style="display:none;">
+                    <label for="zona">Zona</label>
+                    <select id="zona" name="zona">
+                        <option value="" disabled selected>Seleccionar zona...</option>
+                    </select>
+                </div>
+
+                <div class="row-fecha-hora">
+                    <div class="form-group half">
+                        <label for="fecha">Fecha</label>
+                        <input type="date" id="fecha" name="fecha" required>
+                    </div>
+
+                    <div class="form-group half">
+                        <label>Hora</label>
+                        <input type="time" id="hora" name="hora" required>
+                    </div>
+                </div>
+
+                <div class="form-group" id="equipoGroup">
+                    <label for="equipo">Equipo</label>
+                    <div class="combobox" id="equipoCombo">
+                        <div class="combobox-display" id="equipoDisplay" onclick="toggleCombobox('equipo')">Seleccionar equipo...</div>
+                        <input type="hidden" id="equipo" name="equipo">
+                        <div class="combobox-dropdown" id="equipoDropdown">
+                            <input type="text" class="combobox-search" id="equipoSearch" placeholder="Buscar equipo..." autocomplete="off" oninput="filtrarCombobox('equipo', this.value)">
+                            <div class="combobox-options" id="equipoOptions"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="equipoExteriorGroup" style="display:none;">
+                    <label for="equipoExterior">Equipo</label>
+                    <input type="text" id="equipoExterior" placeholder="Escribe el nombre del equipo...">
+                </div>
+
+                <div class="form-group" id="equipoOtroGroup" style="display:none;">
+                    <label for="equipoOtro">Nombre del equipo</label>
+                    <input type="text" id="equipoOtro" placeholder="Escribe el nombre del nuevo equipo...">
+                </div>
+
+                <div class="form-group" id="mantenimientoGroup">
+                    <label for="mantenimiento"> Mantenimiento</label>
+                    <select id="mantenimiento" name="mantenimiento" required>
+                        <option value="" disabled selected>Seleccionar mantenimiento...</option>
+                    </select>
+                </div>
+
+                <div id="otroMantenimientoGroup" style="display:none;">
+                    <div class="form-group">
+                        <label for="otroDescripcion">Descripcion del mantenimiento</label>
+                        <textarea id="otroDescripcion" rows="3" placeholder="Describe el mantenimiento realizado..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Repuestos utilizados</label>
+                        <p class="hint">¿Se usaron repuestos?</p>
+                        <div class="toggle-group">
+                            <button type="button" class="toggle-btn" id="otroRepSi" data-value="Si" onclick="toggleOtroRepuestos(this)">Si</button>
+                            <button type="button" class="toggle-btn" id="otroRepNo" data-value="No" onclick="toggleOtroRepuestos(this)">No</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="otroRepuestosGroup" style="display:none;">
+                        <label>Agregar repuestos</label>
+                        <div id="otroRepuestosRows"></div>
+                        <button type="button" class="btn-secondary btn-add" onclick="agregarRepuestoRow('otroRepuestosRows')">＋ Agregar repuesto</button>
+                    </div>
+                </div>
+
+                <div class="form-actions" id="formActions">
+                    <button type="button" class="btn-primary" id="btnSiguiente">Siguiente</button>
+                </div>
+            </div>
+
+            <div id="paso2" style="display:none;">
+                <div class="form-group">
+                    <label>Rutina</label>
+                    <div id="checkinsContainer" class="checkins-container"></div>
+                </div>
+
+                <div class="form-group" id="descripcionTallerGroup" style="display:none;">
+                    <label for="descripcionTaller">Descripcion (opcional)</label>
+                    <textarea id="descripcionTaller" name="descripcionTaller" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btnAtras">Atras</button>
+                    <button type="button" class="btn-primary" id="btnPaso3" style="display:none;">Siguiente</button>
+                    <button type="submit" class="btn-primary" id="btnEnviar">Enviar</button>
+                </div>
+            </div>
+
+            <div id="paso3" style="display:none;">
+                <div class="form-group">
+                    <label>Repuestos</label>
+                    <p class="hint">¿Se necesitan repuestos para este mantenimiento?</p>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn" id="repSi" data-value="Si" onclick="toggleRepuestosToggle(this)">Si</button>
+                        <button type="button" class="toggle-btn" id="repNo" data-value="No" onclick="toggleRepuestosToggle(this)">No</button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="repuestosGroup" style="display:none;">
+                    <label>Agregar repuestos</label>
+                    <div id="repuestosRows"></div>
+                    <button type="button" class="btn-secondary btn-add" id="btnAgregarRepuesto" onclick="agregarRepuestoRow()">＋ Agregar repuesto</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcion">Descripcion (opcional)</label>
+                    <textarea id="descripcion" name="descripcion" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btnAtras3">Atras</button>
+                    <button type="submit" class="btn-primary">Enviar</button>
+                </div>
+            </div>
+        </form>
+
+        <div id="miniNav" style="display:none;">
+            <button type="button" class="mini-nav-btn" id="btnMiniNav" onclick="irMiniNav()" title="Ir al boton Siguiente">↓</button>
+        </div>
+
+        <form id="averiaForm" style="display:none;" novalidate>
+            <p id="empleadoInfo" class="info-banner"></p>
+
+            <div class="form-group">
+                <label for="aSedes">Sede</label>
+                <select id="aSedes" name="aSedes" required>
+                    <option value="" disabled selected>Seleccionar sede...</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="aZonaGroup" style="display:none;">
+                <label for="aZona">Zona</label>
+                <select id="aZona" name="aZona">
+                    <option value="" disabled selected>Seleccionar zona...</option>
+                </select>
+            </div>
+
+            <div class="row-fecha-hora">
+                <div class="form-group half">
+                    <label for="aFecha">Fecha</label>
+                    <input type="date" id="aFecha" name="aFecha" required>
+                </div>
+
+                <div class="form-group half">
+                    <label>Hora</label>
+                    <input type="time" id="aHora" required>
+                </div>
+            </div>
+
+            <div class="form-group" id="aEquipoGroup">
+                    <label for="aEquipo">Equipo</label>
+                <div class="combobox" id="aEquipoCombo">
+                    <div class="combobox-display" id="aEquipoDisplay" onclick="toggleCombobox('aEquipo')">Seleccionar equipo...</div>
+                    <input type="hidden" id="aEquipo" name="aEquipo">
+                    <div class="combobox-dropdown" id="aEquipoDropdown">
+                        <input type="text" class="combobox-search" id="aEquipoSearch" placeholder="Buscar equipo..." autocomplete="off" oninput="filtrarCombobox('aEquipo', this.value)">
+                        <div class="combobox-options" id="aEquipoOptions"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" id="aEquipoLibreGroup" style="display:none;">
+                <label for="aEquipoLibre">Equipo del evento</label>
+                <input type="text" id="aEquipoLibre" placeholder="Escribe el equipo...">
+                <label for="aEventoLibre" style="margin-top:12px;">Evento</label>
+                <input type="text" id="aEventoLibre" placeholder="Nombre del evento...">
+            </div>
+
+            <div class="form-group" id="aEquipoExteriorGroup" style="display:none;">
+                <label for="aEquipoExterior">Equipo</label>
+                <input type="text" id="aEquipoExterior" placeholder="Escribe el nombre del equipo...">
+            </div>
+
+            <div class="form-group" id="aEquipoOtroGroup" style="display:none;">
+                <label for="aEquipoOtro">Nombre del equipo</label>
+                <input type="text" id="aEquipoOtro" placeholder="Escribe el nombre del nuevo equipo...">
+            </div>
+
+            <div class="form-group">
+                <label>¿El equipo presenta una averia?</label>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn" id="aAvSi" data-value="Si" onclick="toggleAveriaToggle(this)">Si</button>
+                    <button type="button" class="toggle-btn" id="aAvNo" data-value="No" onclick="toggleAveriaToggle(this)">No</button>
+                </div>
+            </div>
+
+            <div id="aAveriaDetalle" style="display:none;">
+                <div class="form-group">
+                    <label for="aDescripcion">Descripcion de la averia</label>
+                    <textarea id="aDescripcion" rows="3" placeholder="Describe que le pasa al equipo..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label id="aFotosLabel">Fotos (maximo 2) - Opcional</label>
+                    <div class="photo-buttons">
+                        <label for="aImagenes" class="btn-photo">Tomar foto</label>
+                        <label for="aImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
+                    </div>
+                    <input type="file" id="aImagenes" accept="image/*" capture="environment" style="display:none;">
+                    <input type="file" id="aImagenesUpload" accept="image/*" multiple style="display:none;">
+                    <div id="aImagenesPreview" class="imagenes-preview"></div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-primary" id="enviarAveriaBtn">Enviar averia</button>
+            </div>
+        </form>
+
+        <form id="resolucionForm" style="display:none;" novalidate>
+            <p id="resolucionInfo" class="info-banner"></p>
+            <div id="resolucionEquipo" class="equipo-banner"></div>
+
+            <div class="form-group">
+                <label for="rTecnico">Tecnico</label>
+                <select id="rTecnico" required>
+                    <option value="" disabled selected>Seleccionar tecnico...</option>
+                </select>
+            </div>
+
+            <div class="row-fecha-hora">
+                <div class="form-group half">
+                    <label for="rFecha">Fecha</label>
+                    <input type="date" id="rFecha" required>
+                </div>
+
+                <div class="form-group half">
+                    <label>Hora</label>
+                    <input type="time" id="rHora" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>¿Se arreglo la averia?</label>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn" id="rSi" data-value="Si" onclick="toggleRealizado(this)">Si</button>
+                    <button type="button" class="toggle-btn" id="rNo" data-value="No" onclick="toggleRealizado(this)">No</button>
+                    <button type="button" class="toggle-btn" id="rProceso" data-value="En proceso" onclick="toggleRealizado(this)">En proceso</button>
+                    <button type="button" class="toggle-btn" id="rFalsa" data-value="Falsa averia" onclick="toggleRealizado(this)">Falsa averia</button>
+                </div>
+            </div>
+
+            <div class="form-group" id="rDescripcionGroup" style="display:none;">
+                <label for="rDescripcion">Descripcion del motivo</label>
+                <textarea id="rDescripcion" rows="3" placeholder="Por que no se realizo / en que quedo..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Repuestos utilizados</label>
+                <p class="hint">¿Se usaron repuestos para esta reparacion?</p>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn" id="rRepSi" data-value="Si" onclick="toggleRepuestosResolucion(this)">Si</button>
+                    <button type="button" class="toggle-btn" id="rRepNo" data-value="No" onclick="toggleRepuestosResolucion(this)">No</button>
+                </div>
+            </div>
+
+            <div class="form-group" id="rRepuestosGroup" style="display:none;">
+                <label>Agregar repuestos</label>
+                <div id="rRepuestosRows"></div>
+                <button type="button" class="btn-secondary btn-add" id="btnAgregarRepuestoResolucion" onclick="agregarRepuestoRow('rRepuestosRows')">＋ Agregar repuesto</button>
+            </div>
+
+            <div class="form-group">
+                <label id="rFotosLabel">Fotos (maximo 2, opcional)</label>
+                <div class="photo-buttons">
+                    <label for="rImagenes" class="btn-photo">Tomar foto</label>
+                    <label for="rImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
+                </div>
+                <input type="file" id="rImagenes" accept="image/*" capture="environment" style="display:none;">
+                <input type="file" id="rImagenesUpload" accept="image/*" multiple style="display:none;">
+                <div id="rImagenesPreview" class="imagenes-preview"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" id="btnAtrasResolucion">Atras</button>
+                <button type="submit" class="btn-primary" id="enviarResolucionBtn">Enviar </button>
+            </div>
+        </form>
+
+        <div id="asignarSection" style="display:none;">
+            <div class="card">
+                <h2 style="color:#1976d2;margin-bottom:10px;">Asignar Averia</h2>
+                <p id="asignarInfo" style="color:#666;margin-bottom:20px;"></p>
+
+                <div class="form-group">
+                    <label for="selTecnicoAsignar">Seleccionar tecnico:</label>
+                    <select id="selTecnicoAsignar">
+                        <option value="">Cargando tecnicos...</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-primary" id="btnAsignarTecnico" disabled>Asignar y Notificar</button>
+                </div>
+
+                <div id="asignarMsg" style="margin-top:15px;"></div>
+                <div id="whatsappLink" style="margin-top:15px;display:none;"></div>
+            </div>
+        </div>
+
+        <div id="cisternaPagoSection" style="display:none;">
+            <div class="card">
+                <h2 style="color:#1976d2;margin-bottom:10px;">Pago de Cisternas</h2>
+                <p id="cisternaPagoInfo" style="color:#666;margin-bottom:10px;"></p>
+
+                <div id="cisternaTablaDeudas" style="overflow-x:auto;margin-bottom:20px;"></div>
+
+                <div class="form-group" id="cisternaTotalGroup" style="background:#fff3e0;padding:15px;border-radius:8px;margin-bottom:15px;">
+                    <label style="font-size:1.1rem;font-weight:700;">Total adeudado: <span id="cisternaTotalMonto" style="color:#d32f2f;font-size:1.3rem;">$0</span></label>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de pago</label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn" id="cpPagoTotal" data-value="Pago total" onclick="toggleCisternaPago(this)">Pago total</button>
+                        <button type="button" class="toggle-btn" id="cpAporte" data-value="Aporte" onclick="toggleCisternaPago(this)">Aporte</button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="cisternaAporteGroup" style="display:none;">
+                    <label for="cisternaAporteMonto">Monto del aporte ($)</label>
+                    <input type="number" id="cisternaAporteMonto" min="1" placeholder="Ej: 50">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btnAtrasCisterna" onclick="volverAlLogin()">Atras</button>
+                    <button type="button" class="btn-primary" id="btnConfirmarPagoCisterna" onclick="confirmarPagoCisterna()">Confirmar pago</button>
+                </div>
+
+                <div id="cisternaPagoMsg" style="margin-top:15px;"></div>
+            </div>
+        </div>
+
+        <div id="calendarioSection" style="display:none;">
+            <div class="card">
+                <h2 style="color:#2e7d32;margin-bottom:10px;">Mantenimiento Preventivo Semanal</h2>
+                <p id="calendarioInfo" style="color:#666;margin-bottom:20px;"></p>
+
+                <div class="form-actions" style="margin-bottom:15px;">
+                    <button type="button" class="btn-primary" id="btnGenerarSemana" onclick="generarSemanaDesdeCalendario()">Generar/Actualizar Semana</button>
+                    <button type="button" class="btn-secondary" id="btnAtrasCalendario" onclick="volverAlLogin()">Salir</button>
+                </div>
+
+                <div id="calendarioTabla" style="overflow-x:auto;margin-bottom:20px;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-primary" id="btnGuardarAsignaciones" onclick="guardarAsignacionesWeb()">Guardar Asignaciones</button>
+                </div>
+                <div id="calendarioMsg" style="margin-top:15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resumenModal" style="display:none;">
+        <div class="resumen-modal-overlay">
+            <div class="resumen-modal">
+                <h3>Resumen del mantenimiento</h3>
+                <p class="resumen-modal-hint">Copia y pega este mensaje para compartirlo:</p>
+                <textarea id="resumenTexto" readonly rows="12" onclick="copiarResumen()"></textarea>
+                <div class="resumen-modal-actions">
+                    <button type="button" class="btn-primary" onclick="copiarResumen()">Copiar</button>
+                    <button type="button" class="btn-secondary" onclick="cerrarResumen()">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/repuestos.js"></script>
+    <script src="js/checkin.js"></script>
+    <script src="js/averia.js"></script>
+    <script src="js/resolucion.js"></script>
+    <script src="js/semanero.js"></script>
+    <script src="js/cistern.js"></script>
+    <script src="js/calendario.js"></script>
+    <script src="js/app.js"></script>
+
+    <footer>
+        <p>© 2026 CCS.CATERING. Todos los derechos reservados.</p>
+        <p><a href="https://wa.me/584124756318" target="_blank" rel="noopener noreferrer">Soporte técnico</a></p>
+    </footer>
+</body>
+</html>

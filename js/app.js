@@ -22,6 +22,114 @@ let resolucionImagenes = [];
 let cisternaDeudas = [];
 let cisternaTotal = 0;
 
+const LOGIN_MAX_INTENTOS = 5;
+const LOGIN_BLOQUEO_MS = 60 * 60 * 1000;
+const LOGIN_STORAGE_KEY = "loginAttempts";
+const DEVICE_ID_KEY = "deviceId";
+let loginCountdownInterval = null;
+
+function getDeviceId() {
+    try {
+        var id = localStorage.getItem(DEVICE_ID_KEY);
+        if (id) return id;
+        id = "dev-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+        localStorage.setItem(DEVICE_ID_KEY, id);
+        return id;
+    } catch (e) {
+        return "dev-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+    }
+}
+
+function getLoginAttempts() {
+    try {
+        return JSON.parse(localStorage.getItem(LOGIN_STORAGE_KEY) || '{"count":0,"blockedUntil":0}');
+    } catch (e) {
+        return { count: 0, blockedUntil: 0 };
+    }
+}
+
+function saveLoginAttempts(data) {
+    try {
+        localStorage.setItem(LOGIN_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {}
+}
+
+function isLoginBlocked() {
+    var data = getLoginAttempts();
+    if (data.blockedUntil && Date.now() < data.blockedUntil) return true;
+    if (data.blockedUntil && Date.now() >= data.blockedUntil) {
+        saveLoginAttempts({ count: 0, blockedUntil: 0 });
+    }
+    return false;
+}
+
+function registerLoginFailure() {
+    var data = getLoginAttempts();
+    data.count++;
+    if (data.count >= LOGIN_MAX_INTENTOS) {
+        data.blockedUntil = Date.now() + LOGIN_BLOQUEO_MS;
+        data.count = LOGIN_MAX_INTENTOS;
+    }
+    saveLoginAttempts(data);
+    return data;
+}
+
+function resetLoginAttempts() {
+    saveLoginAttempts({ count: 0, blockedUntil: 0 });
+}
+
+function mostrarBloqueoLogin(bloqueadoHastaUnix) {
+    var info = document.getElementById("loginBlockInfo");
+    var data = getLoginAttempts();
+    if (bloqueadoHastaUnix) {
+        data.blockedUntil = bloqueadoHastaUnix;
+        data.count = LOGIN_MAX_INTENTOS;
+        saveLoginAttempts(data);
+    }
+    if (!data.blockedUntil || Date.now() >= data.blockedUntil) {
+        info.style.display = "none";
+        return;
+    }
+    var btn = document.getElementById("btnLogin");
+    var input = document.getElementById("codigoTecnico");
+    btn.disabled = true;
+    input.disabled = true;
+    info.className = "blocked";
+    info.style.display = "block";
+
+    if (loginCountdownInterval) clearInterval(loginCountdownInterval);
+    loginCountdownInterval = setInterval(function () {
+        var restante = data.blockedUntil - Date.now();
+        if (restante <= 0) {
+            clearInterval(loginCountdownInterval);
+            loginCountdownInterval = null;
+            info.style.display = "none";
+            btn.disabled = false;
+            input.disabled = false;
+            saveLoginAttempts({ count: 0, blockedUntil: 0 });
+            return;
+        }
+        var mins = Math.floor(restante / 60000);
+        var secs = Math.floor((restante % 60000) / 1000);
+        info.innerHTML = "Demasiados intentos fallidos.<br>Dispositivo bloqueado temporalmente.<span class='countdown'>" + mins + "m " + (secs < 10 ? "0" : "") + secs + "s</span>";
+    }, 1000);
+    var restante = data.blockedUntil - Date.now();
+    var mins = Math.floor(restante / 60000);
+    var secs = Math.floor((restante % 60000) / 1000);
+    info.innerHTML = "Demasiados intentos fallidos.<br>Dispositivo bloqueado temporalmente.<span class='countdown'>" + mins + "m " + (secs < 10 ? "0" : "") + secs + "s</span>";
+}
+
+function mostrarIntentosRestantes(restantes) {
+    var info = document.getElementById("loginBlockInfo");
+    if (restantes > 0 && restantes < LOGIN_MAX_INTENTOS) {
+        info.className = "warning";
+        info.style.display = "block";
+        info.innerHTML = "Te quedan <strong>" + restantes + "</strong> intento" + (restantes > 1 ? "s" : "") + " antes de ser bloqueado.";
+    } else {
+        info.style.display = "none";
+    }
+}
+
 function cargarAverias() {
     return fetch(APPS_SCRIPT_URL + "?accion=averias")
         .then(function (r) { return r.json(); })
@@ -132,6 +240,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("codigoTecnico").addEventListener("keydown", function (e) {
         if (e.key === "Enter") loginTecnico();
     });
+
+    if (isLoginBlocked()) {
+        mostrarBloqueoLogin();
+    }
 
     document.getElementById("btnPaso3").addEventListener("click", function () {
         if (esTaller && esSemanarioRuices) {
@@ -434,11 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function mostrarInterfazAsignar(numeroAv) {
-    document.getElementById("loginSection").style.display = "none";
-    document.getElementById("checkinForm").style.display = "none";
-    document.getElementById("averiaForm").style.display = "none";
-    document.getElementById("resolucionForm").style.display = "none";
-    document.getElementById("asignarSection").style.display = "block";
+    mostrarSoloSeccion("asignarSection");
     document.getElementById("asignarInfo").textContent = "Averia: " + numeroAv;
     window._avAsignar = numeroAv;
 
@@ -512,16 +620,32 @@ function asignarTecnicoWeb() {
     });
 }
 
+const SECCIONES_INTERFAZ = ["loginSection", "checkinForm", "averiaForm", "resolucionForm", "asignarSection", "cisternaPagoSection", "calendarioSection"];
+
+function mostrarSoloSeccion(id) {
+    for (var i = 0; i < SECCIONES_INTERFAZ.length; i++) {
+        var el = document.getElementById(SECCIONES_INTERFAZ[i]);
+        if (el) el.style.display = (SECCIONES_INTERFAZ[i] === id) ? "block" : "none";
+    }
+}
+
 function loginTecnico() {
     const codigo = document.getElementById("codigoTecnico").value.trim();
     const errorEl = document.getElementById("loginError");
+    const blockInfo = document.getElementById("loginBlockInfo");
+
+    if (isLoginBlocked()) {
+        mostrarBloqueoLogin();
+        return;
+    }
 
     const continuarConPersonal = function (personal, esMantenimiento) {
         if (personal && personal.tipo === "Tecnico" && esMantenimiento) {
             tecnicoNombre = personal.nombre;
             errorEl.style.display = "none";
-            document.getElementById("loginSection").style.display = "none";
-            document.getElementById("checkinForm").style.display = "block";
+            blockInfo.style.display = "none";
+            resetLoginAttempts();
+            mostrarSoloSeccion("checkinForm");
             document.getElementById("tecnicoInfo").textContent = "Tecnico: " + tecnicoNombre;
             populateSelect("sedes", SEDES_CHECKIN);
             populateSelect("mantenimiento", MANTENIMIENTOS);
@@ -533,8 +657,9 @@ function loginTecnico() {
             tecnicoNombre = personal.nombre;
             empleadoNombre = personal.nombre;
             errorEl.style.display = "none";
-            document.getElementById("loginSection").style.display = "none";
-            document.getElementById("averiaForm").style.display = "block";
+            blockInfo.style.display = "none";
+            resetLoginAttempts();
+            mostrarSoloSeccion("averiaForm");
             document.getElementById("empleadoInfo").textContent = "Tecnico: " + tecnicoNombre;
             populateSelect("aSedes", SEDES);
             limpiarHora("a");
@@ -544,17 +669,25 @@ function loginTecnico() {
         if (personal && personal.tipo === "Empleado") {
             empleadoNombre = personal.nombre;
             errorEl.style.display = "none";
-            document.getElementById("loginSection").style.display = "none";
-            document.getElementById("averiaForm").style.display = "block";
+            blockInfo.style.display = "none";
+            resetLoginAttempts();
+            mostrarSoloSeccion("averiaForm");
             document.getElementById("empleadoInfo").textContent = "Usuario: " + empleadoNombre;
             populateSelect("aSedes", SEDES);
             limpiarHora("a");
             mostrarMiniNav();
             return;
         }
+        var intentos = registerLoginFailure();
+        var restantes = LOGIN_MAX_INTENTOS - intentos.count;
         errorEl.textContent = "Credencial o codigo de averia no valido. Solicita tu registro al administrador.";
         errorEl.style.display = "block";
         document.getElementById("codigoTecnico").value = "";
+        if (restantes <= 0) {
+            mostrarBloqueoLogin();
+        } else {
+            mostrarIntentosRestantes(restantes);
+        }
     };
 
     const procesarLogin = function (av) {
@@ -577,15 +710,42 @@ function loginTecnico() {
         var esMantenimiento = /2$/.test(codigo) && /^\d+$/.test(codigo);
         var cedulaBusqueda = esMantenimiento ? codigo.slice(0, -1) : codigo;
 
-        fetch(APPS_SCRIPT_URL + "?accion=login&cedula=" + encodeURIComponent(cedulaBusqueda))
+        fetch(APPS_SCRIPT_URL + "?accion=login&cedula=" + encodeURIComponent(cedulaBusqueda) + "&deviceId=" + encodeURIComponent(getDeviceId()))
             .then(function (r) { return r.json(); })
             .then(function (resultado) {
+                if (resultado && resultado.status === "bloqueado") {
+                    var bloqueadoHasta = (resultado.restanteMs ? Date.now() + resultado.restanteMs : Date.now() + LOGIN_BLOQUEO_MS);
+                    errorEl.style.display = "none";
+                    document.getElementById("codigoTecnico").value = "";
+                    mostrarBloqueoLogin(bloqueadoHasta);
+                    return;
+                }
+                if (resultado && resultado.status === "not_found") {
+                    var intentos = registerLoginFailure();
+                    var restantes = (resultado.restantes !== undefined) ? resultado.restantes : (LOGIN_MAX_INTENTOS - intentos.count);
+                    errorEl.textContent = "Credencial o codigo de averia no valido. Solicita tu registro al administrador.";
+                    errorEl.style.display = "block";
+                    document.getElementById("codigoTecnico").value = "";
+                    if (restantes <= 0) {
+                        mostrarBloqueoLogin();
+                    } else {
+                        mostrarIntentosRestantes(restantes);
+                    }
+                    return;
+                }
                 var personal = resultado && resultado.status === "ok" ? resultado : null;
                 continuarConPersonal(personal, esMantenimiento);
             })
             .catch(function () {
+                var intentos = registerLoginFailure();
+                var restantes = LOGIN_MAX_INTENTOS - intentos.count;
                 errorEl.textContent = "Error de conexion. Intenta de nuevo.";
                 errorEl.style.display = "block";
+                if (restantes <= 0) {
+                    mostrarBloqueoLogin();
+                } else {
+                    mostrarIntentosRestantes(restantes);
+                }
             });
     };
 
@@ -694,17 +854,18 @@ function actualizarMiniNav() {
     var objetivo = obtenerObjetivoMiniNav();
     if (!objetivo) return;
 
-    var rect = objetivo.getBoundingClientRect();
-    var visibleObjetivo = (rect.top > 0 && rect.top < window.innerHeight * 0.75);
-
     nav.style.display = "block";
-    if (visibleObjetivo) {
+
+    var rect = objetivo.getBoundingClientRect();
+    var estaVisible = rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+
+    if (estaVisible) {
         btnMini.textContent = "↑";
         btnMini.title = "Volver arriba";
         btnMini.setAttribute("data-dir", "up");
     } else {
         btnMini.textContent = "↓";
-        btnMini.title = "Bajar";
+        btnMini.title = "Ir al boton Siguiente";
         btnMini.setAttribute("data-dir", "down");
     }
 }

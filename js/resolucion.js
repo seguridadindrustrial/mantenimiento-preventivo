@@ -16,8 +16,7 @@ function toggleRepuestosResolucion(btn) {
 
 function abrirResolucion(av) {
     resolucionActualNumero = String(av.numero || "");
-    document.getElementById("loginSection").style.display = "none";
-    document.getElementById("resolucionForm").style.display = "block";
+    mostrarSoloSeccion("resolucionForm");
     document.getElementById("resolucionInfo").textContent =
         "Averia " + resolucionActualNumero + " | Sede: " + (av.sede || "") +
         (av.zona ? " | Zona: " + av.zona : "") +
@@ -236,9 +235,7 @@ function volverAlLogin() {
     resolucionActualNumero = "";
     resolucionImagenes = [];
     document.getElementById("resolucionEquipo").textContent = "";
-    document.getElementById("resolucionForm").style.display = "none";
-    document.getElementById("cisternaPagoSection").style.display = "none";
-    document.getElementById("loginSection").style.display = "block";
+    mostrarSoloSeccion("loginSection");
     document.getElementById("codigoTecnico").value = "";
     const errorEl = document.getElementById("loginError");
     errorEl.style.display = "none";

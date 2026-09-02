@@ -262,6 +262,26 @@ textarea:focus {
     }
 }
 
+#loginBlockInfo.warning {
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc80;
+}
+
+#loginBlockInfo.blocked {
+    background: #ffebee;
+    color: #b71c1c;
+    border: 1px solid #ef9a9a;
+    font-weight: 600;
+}
+
+#loginBlockInfo .countdown {
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: block;
+    margin-top: 4px;
+}
+
 .btn-secondary {
     flex: 1;
     padding: 12px;

@@ -98,8 +98,7 @@ function enviarAveria(e) {
     if (yaEnviado(idUnico)) {
         alert("Este registro ya fue enviado anteriormente.");
         clearAveriaForm();
-        document.getElementById("averiaForm").style.display = "none";
-        document.getElementById("loginSection").style.display = "block";
+        mostrarSoloSeccion("loginSection");
         document.getElementById("codigoTecnico").value = "";
         return;
     }
@@ -140,8 +139,7 @@ function enviarAveria(e) {
         marcarEnviado(idUnico);
         alert("Averia reportada correctamente.");
         clearAveriaForm();
-        document.getElementById("averiaForm").style.display = "none";
-        document.getElementById("loginSection").style.display = "block";
+        mostrarSoloSeccion("loginSection");
         document.getElementById("codigoTecnico").value = "";
         averiaEnviando = false;
         btnEnviar.disabled = false;

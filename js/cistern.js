@@ -1,12 +1,7 @@
 // cistern.js - Interfaz de pago de cisterna
 
 function mostrarInterfazPagoCisterna() {
-    document.getElementById("loginSection").style.display = "none";
-    document.getElementById("checkinForm").style.display = "none";
-    document.getElementById("averiaForm").style.display = "none";
-    document.getElementById("resolucionForm").style.display = "none";
-    document.getElementById("asignarSection").style.display = "none";
-    document.getElementById("cisternaPagoSection").style.display = "block";
+    mostrarSoloSeccion("cisternaPagoSection");
 
     document.getElementById("cisternaPagoInfo").textContent = "Cargando deudas pendientes...";
     document.getElementById("cisternaTablaDeudas").innerHTML = "";

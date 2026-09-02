@@ -197,8 +197,11 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
         if (tanquesWrapper && !tallerSubCompleto(tanquesWrapper)) {
             alert("Las sub-preguntas de Tanques estan incompletas. Complete: Llenos, Vacios, Entrada de Agua de la Calle, Solicitar cisterna.");
         } else if (confirm("Confirmar envio de Tanques?\n\nFecha: " + fecha + "\nHora: " + hora + "\nSede: " + sedes)) {
-            var solicitaCisterna = tallerValues["Tanques"].sub && tallerValues["Tanques"].sub["Solicitar cisterna"] === "Si";
-            var estadoTanque = (tallerValues["Tanques"].sub && tallerValues["Tanques"].sub["Estado"]) || "";
+            var sub = tallerValues["Tanques"].sub || {};
+            var solicitaCisterna = sub["Solicitar cisterna"] === "Si";
+            var entradaDeAgua = sub["Entrada de Agua de la Calle"] || "";
+            var llenos = (sub["Llenos"] !== undefined && sub["Llenos"] !== null) ? sub["Llenos"] : "";
+            var vacios = (sub["Vacios"] !== undefined && sub["Vacios"] !== null) ? sub["Vacios"] : "";
 
             if (solicitaCisterna) {
                 postJSON({ tipo: "solicitar_cisterna", sede: sedes, fecha: fecha, hora: hora, tecnico: tecnicoNombre }).catch(function () {});
@@ -218,6 +221,10 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
                     equipo: sedes === "RUICES" ? "Semanero los Ruices" : "SEMANERO",
                     rutina: "Actividades de Semaneros - Tanques",
                     task: "Tanques",
+                    llenos: llenos,
+                    vacios: vacios,
+                    entradaDeAgua: entradaDeAgua,
+                    solicitarCisterna: solicitaCisterna,
                     descripcion: descripcion
                 });
                 postJSON({
@@ -227,8 +234,10 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
                     hora: hora,
                     zona: zona,
                     tecnico: tecnicoNombre,
+                    llenos: llenos,
+                    vacios: vacios,
+                    entradaDeAgua: entradaDeAgua,
                     solicitarCisterna: solicitaCisterna,
-                    estado: estadoTanque,
                     descripcion: descripcion
                 }).catch(function () {});
             }
@@ -545,7 +554,10 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                 }
                 const idTanques = generarIdUnico(fecha, hora, sedes, "Tanques", tecnicoNombre);
                 if (!yaEnviado(idTanques)) {
-                    const estadoTanque = (tarea.sub && tarea.sub["Estado"]) || "";
+                    const subT = (tarea.sub || {});
+                    const entradaDeAgua = subT["Entrada de Agua de la Calle"] || "";
+                    const llenos = (subT["Llenos"] !== undefined && subT["Llenos"] !== null) ? subT["Llenos"] : "";
+                    const vacios = (subT["Vacios"] !== undefined && subT["Vacios"] !== null) ? subT["Vacios"] : "";
                     marcarEnviado(idTanques);
                     saveToLocalStorage({
                         id: idTanques,
@@ -558,6 +570,10 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                         equipo: sedes === "RUICES" ? "Semanero los Ruices" : "SEMANERO",
                         rutina: "Actividades de Semaneros - Tanques",
                         task: "Tanques",
+                        llenos: llenos,
+                        vacios: vacios,
+                        entradaDeAgua: entradaDeAgua,
+                        solicitarCisterna: solicitaCisterna,
                         descripcion: descripcion
                     });
                     postJSON({
@@ -567,8 +583,10 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                         hora: hora,
                         zona: zona,
                         tecnico: tecnicoNombre,
+                        llenos: llenos,
+                        vacios: vacios,
+                        entradaDeAgua: entradaDeAgua,
                         solicitarCisterna: solicitaCisterna,
-                        estado: estadoTanque,
                         descripcion: descripcion
                     }).catch(function () {});
                 }

@@ -212,6 +212,7 @@ function setPaso2Buttons() {
 
 function renderRutinaDinamica(container, equipo) {
     esDinamica = true;
+    equipo = limpiarEquipo(equipo);
     equipoDinamicoActual = equipo || "";
 
     const guardada = getRutinaDinamicaGuardada(equipoDinamicoActual);

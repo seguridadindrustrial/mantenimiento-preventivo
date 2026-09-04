@@ -159,22 +159,43 @@ function buscarAveriaLocal(codigo) {
     return buscar();
 }
 
-function guardarRutinaDinamica(equipo, pasos) {
+function registrarEquipoNuevo(equipo) {
     if (!equipo) return;
-    const actual = getRutinaDinamicaGuardada(equipo);
-    const creadoPor = (actual && actual.creadoPor) || tecnicoNombre || "";
-    const dato = { pasos: pasos.slice(), creadoPor: creadoPor };
-    rutinasDinamicasGuardadas[equipo] = dato;
-    try {
-        const stored = JSON.parse(localStorage.getItem("rutinasDinamicas") || "{}");
-        stored[equipo] = dato;
-        localStorage.setItem("rutinasDinamicas", JSON.stringify(stored));
-    } catch (err) {}
+    const equipoLimpio = limpiarEquipo(equipo);
+    const sede = (document.getElementById("sedes") && document.getElementById("sedes").value) || "";
+    const zona = (document.getElementById("zona") && document.getElementById("zona").value) || "";
+    const enListaEstatica = ((SEDE_EQUIPOS[sede] || []).some(function (n) { return normalizarEquipo(n) === normalizarEquipo(equipoLimpio); })) ||
+        (zona && ZONA_EQUIPOS[sede] && ZONA_EQUIPOS[sede][zona] && ZONA_EQUIPOS[sede][zona].length > 0 && ZONA_EQUIPOS[sede][zona].some(function (n) { return normalizarEquipo(n) === normalizarEquipo(equipoLimpio); }));
+    const yaEnBackend = (EQUIPOS_BACKEND || []).some(function (e) { return normalizarEquipo(e.equipo) === normalizarEquipo(equipoLimpio); });
+    if (enListaEstatica || yaEnBackend) return;
+    EQUIPOS_BACKEND.push({ equipo: equipoLimpio, sede: sede, zona: zona.toUpperCase() });
     try {
         fetch(APPS_SCRIPT_URL, {
             method: "POST",
             mode: "no-cors",
-            body: JSON.stringify({ tipo: "rutina", equipo: equipo, pasos: pasos, creadoPor: creadoPor })
+            body: JSON.stringify({ tipo: "nuevo_equipo", equipo: equipoLimpio, sede: sede, zona: zona })
+        }).catch(function () {});
+    } catch (err) {}
+}
+
+function guardarRutinaDinamica(equipo, pasos) {
+    if (!equipo) return;
+    const equipoLimpio = limpiarEquipo(equipo);
+    const actual = getRutinaDinamicaGuardada(equipoLimpio);
+    const creadoPor = (actual && actual.creadoPor) || tecnicoNombre || "";
+    const dato = { pasos: pasos.slice(), creadoPor: creadoPor };
+    rutinasDinamicasGuardadas[equipoLimpio] = dato;
+    try {
+        const stored = JSON.parse(localStorage.getItem("rutinasDinamicas") || "{}");
+        stored[equipoLimpio] = dato;
+        localStorage.setItem("rutinasDinamicas", JSON.stringify(stored));
+    } catch (err) {}
+    registrarEquipoNuevo(equipoLimpio);
+    try {
+        fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ tipo: "rutina", equipo: equipoLimpio, pasos: pasos, creadoPor: creadoPor })
         }).catch(() => {});
     } catch (err) {}
 }
@@ -234,6 +255,7 @@ function cargarRutinasDinamicas() {
 
 document.addEventListener("DOMContentLoaded", () => {
     inicializarDatosEquipos();
+    cargarEquiposBackend();
     cargarRutinasDinamicas();
     cargarAverias();
     document.getElementById("btnLogin").addEventListener("click", loginTecnico);
@@ -313,8 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             zonaGroup.style.display = "none";
             zonaSelect.value = "";
-            const equipos = SEDE_EQUIPOS[sede] || [];
-            populateSelect("aEquipo", equipos, true);
+            populateSelect("aEquipo", getEquiposCombo(sede, ""), true);
         }
         actualizarLabelFotos();
     });
@@ -338,14 +359,14 @@ document.addEventListener("DOMContentLoaded", () => {
         equipoExteriorGroup.style.display = "none";
         equipoGroup.style.display = "block";
         if (zona === "OTROS") {
-            populateSelect("aEquipo", SEDE_EQUIPOS[sede] || [], true);
+            populateSelect("aEquipo", getEquiposCombo(sede, ""), true);
             return;
         }
         const zonaData = ZONA_EQUIPOS[sede]?.[zona] || [];
         if (zonaData.length > 0) {
-            populateSelect("aEquipo", zonaData, true);
+            populateSelect("aEquipo", getEquiposCombo(sede, zona), true);
         } else {
-            populateSelect("aEquipo", SEDE_EQUIPOS[sede] || [], true);
+            populateSelect("aEquipo", getEquiposCombo(sede, ""), true);
         }
     });
 
@@ -426,8 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             zonaGroup.style.display = "none";
             zonaSelect.value = "";
-            const equipos = SEDE_EQUIPOS[sede] || [];
-            populateSelect("equipo", equipos, true);
+            populateSelect("equipo", getEquiposCombo(sede, ""), true);
         }
         document.getElementById("equipo").required = true;
         document.getElementById("mantenimiento").required = true;
@@ -479,13 +499,13 @@ document.addEventListener("DOMContentLoaded", () => {
             esTaller = false;
             esSemanarioRuices = false;
             if (zona === "OTROS") {
-                populateSelect("equipo", SEDE_EQUIPOS[sede] || [], true);
+                populateSelect("equipo", getEquiposCombo(sede, ""), true);
             } else {
             const zonaData = ZONA_EQUIPOS[sede]?.[zona] || [];
             if (zonaData.length > 0) {
-                    populateSelect("equipo", zonaData, true);
+                    populateSelect("equipo", getEquiposCombo(sede, zona), true);
             } else {
-                    populateSelect("equipo", SEDE_EQUIPOS[sede] || [], true);
+                    populateSelect("equipo", getEquiposCombo(sede, ""), true);
                 }
             }
         }

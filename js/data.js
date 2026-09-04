@@ -11,6 +11,64 @@ let SEDE_ZONAS = {};
 // El login ahora se valida contra el backend (ver loginTecnico() en js/app.js).
 
 
+let EQUIPOS_BACKEND = [];
+
+function normalizarEquipo(nombre) {
+    return String(nombre || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function limpiarEquipo(nombre) {
+    return String(nombre || "").replace(/\s+/g, " ").trim().toUpperCase();
+}
+
+function cargarEquiposBackend() {
+    return fetch(APPS_SCRIPT_URL + "?accion=equipos")
+        .then(function (r) { return r.json(); })
+        .then(function (lista) {
+            if (!Array.isArray(lista)) return;
+            EQUIPOS_BACKEND = lista
+                .filter(function (e) { return e && String(e.equipo || "").trim(); })
+                .map(function (e) {
+                    return {
+                        equipo: limpiarEquipo(e.equipo),
+                        sede: String(e.sede || "").trim(),
+                        zona: String(e.zona || "").trim().toUpperCase()
+                    };
+                });
+        })
+        .catch(function () {});
+}
+
+function getEquiposCombo(sede, zona) {
+    const base = (zona && ZONA_EQUIPOS[sede] && ZONA_EQUIPOS[sede][zona] && ZONA_EQUIPOS[sede][zona].length > 0)
+        ? ZONA_EQUIPOS[sede][zona]
+        : (SEDE_EQUIPOS[sede] || []);
+    const vistos = {};
+    const mapa = {};
+    base.forEach(function (n) {
+        const key = normalizarEquipo(n);
+        if (key && !vistos[key]) { vistos[key] = true; mapa[key] = limpiarEquipo(n); }
+    });
+    (EQUIPOS_BACKEND || []).forEach(function (e) {
+        if (!e.equipo) return;
+        if (e.sede && e.sede.toUpperCase() !== String(sede || "").toUpperCase()) return;
+        if (zona && e.zona && e.zona !== String(zona || "").toUpperCase()) return;
+        const key = normalizarEquipo(e.equipo);
+        if (key && !vistos[key]) { vistos[key] = true; mapa[key] = limpiarEquipo(e.equipo); }
+    });
+    const resultado = [];
+    Object.keys(mapa).forEach(function (key) { resultado.push(mapa[key]); });
+    resultado.sort(function (a, b) {
+        return normalizarEquipo(a) < normalizarEquipo(b) ? -1 : (normalizarEquipo(a) > normalizarEquipo(b) ? 1 : 0);
+    });
+    return resultado;
+}
+
 function inicializarDatosEquipos() {
     const sedesSet = new Set();
     const sedeZonasMap = {};
@@ -80,6 +138,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
         ],
         "PISO 1": [
             "CAVA CUARTO DE CONSERVACION 2",
@@ -130,6 +189,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
         ],
         "PISO 2": [
             "AIRE ACONDICIONADO 5 TON FAN COIL 4",
@@ -153,6 +213,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
         ],
         "TERRAZA": [
             "MOTOR EXTRACTOR 12000 CFM PLANTA BAJA",
@@ -170,6 +231,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
         ],
         "ESTACIONAMIENTO": [
             "CAVA CUARTO DE BASURA",
@@ -218,6 +280,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+             "ESTANTERIA",
         ],
         "PISO 1": [
             "A/A 12000 BTU VENTANA ///DORMITORIO",
@@ -242,6 +305,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
         ],
         "NUEVO ESPACIO": [
             "FREIDORA IMPERIAL",
@@ -277,6 +341,7 @@ const ZONA_EQUIPOS = {
             "LAMPARAS",
             "ESCRITORIOS",
             "AIRE ACONDICIONADO 5 TONELADAS ",
+             "ESTANTERIA",
         ],
         "TALLER": [
             "MICROONDAS DEL TALLER # 3",
@@ -291,6 +356,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
         ],
         "ESTACIONAMIENTO": [
             "CHAMBRANAS",
@@ -324,6 +390,7 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
+            "ESTANTERIA",
             "LIMPIEZA DE CANALETAS",
             "LIMPIEZA DE TANQUES",
             "LIMPIEZA DE TANQUILLA",
@@ -371,6 +438,7 @@ const SEDE_EQUIPOS = {
         "ENFRIADOR DE AGUA # 4",
         "ENFRIADOR DE BOTELLON OFICINAS",
         "ESCRITORIOS",
+        "ESTANTERIA",
         "EXTINTOR # 1",
         "EXTINTORES",
         "FERMENTADOR",
@@ -442,6 +510,7 @@ const SEDE_EQUIPOS = {
         "ENFRIADOR DE BOTELLON # 3 TALLER",
         "ENFRIADOR SUSHI CAKE",
         "ESCALINATAS",
+        "ESTANTERIA",
         "ESCRITORIOS",
         "EXTINTORES",
         "EXTINTORES EVENTOS",
@@ -494,11 +563,13 @@ const SEDE_EQUIPOS = {
         "TABLEROS ELECTRICOS",
         "TANQUES DE AGUA (8000LTS)",
         "TANQUILLAS",
+       
     ],
     "ALTAMIRA": [
         "ALFOMBRA PISO",
         "ELEVADOR DE CARGA",
         "ESCRITORIOS",
+        "ESTANTERIA",
         "EXTINTOR # 2",
         "EXTINTORES",
         "FILTRO DE CARBON ACTIVADO",
@@ -914,6 +985,7 @@ const EQUIPO_RUTINA = {
     "ENFRIADOR DE BOTELLON OFICINAS": "Rutina Enfriadores de Agua",
     "ENFRIADOR SUSHI CAKE": "Rutina Cava Cuarto/Nevera",
     "ESCALINATAS": "Rutina Escalinatas",
+    "ESTANTERIA": "Rutina Dinamica - Estantería",
     "EXTINTOR # 1": "Rutina Seguridad",
     "EXTINTOR # 2": "Rutina Seguridad",
     "EXTINTORES": "Rutina Seguridad",

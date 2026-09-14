@@ -64,7 +64,6 @@ function enviarAveria(e) {
         zona: zona,
         equipo: equipo,
         averia: "Si",
-        descripcion: descripcion,
         empleado: empleadoNombre,
         imagenes: averiaImagenes
     };

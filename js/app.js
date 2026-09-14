@@ -301,86 +301,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const zonas = getAveriaZonas(sede);
         const zonaGroup = document.getElementById("aZonaGroup");
         const zonaSelect = document.getElementById("aZona");
-        const equipoGroup = document.getElementById("aEquipoGroup");
-        const equipoLibreGroup = document.getElementById("aEquipoLibreGroup");
-        const equipoExteriorGroup = document.getElementById("aEquipoExteriorGroup");
-        const equipoOtroGroup = document.getElementById("aEquipoOtroGroup");
-
-        equipoExteriorGroup.style.display = "none";
-        document.getElementById("aEquipoExterior").value = "";
-        equipoOtroGroup.style.display = "none";
-        document.getElementById("aEquipoOtro").value = "";
+        const label = document.getElementById("aFotosLabel");
 
         if (sede === "EVENTO") {
             zonaGroup.style.display = "none";
             zonaSelect.value = "";
-            equipoGroup.style.display = "none";
-            resetCombobox("aEquipo", "Seleccionar equipo...");
-            equipoLibreGroup.style.display = "block";
-            document.getElementById("aEquipoLibre").value = "";
-            document.getElementById("aEventoLibre").value = "";
-            actualizarLabelFotos();
+            label.textContent = "Fotos - Obligatoria (maximo 2)";
             return;
         }
-
-        equipoGroup.style.display = "block";
-        equipoLibreGroup.style.display = "none";
-        document.getElementById("aEquipoLibre").value = "";
-        document.getElementById("aEventoLibre").value = "";
 
         if (zonas.length > 0) {
             zonaGroup.style.display = "block";
             populateSelect("aZona", zonas);
-            resetCombobox("aEquipo", "Seleccionar equipo...");
         } else {
             zonaGroup.style.display = "none";
             zonaSelect.value = "";
-            populateSelect("aEquipo", getEquiposCombo(sede, ""), true);
         }
-        actualizarLabelFotos();
     });
 
     document.getElementById("aZona").addEventListener("change", function () {
-        const sede = document.getElementById("aSedes").value;
-        const zona = this.value;
-        const equipoGroup = document.getElementById("aEquipoGroup");
-        const equipoExteriorGroup = document.getElementById("aEquipoExteriorGroup");
-        const equipoOtroGroup = document.getElementById("aEquipoOtroGroup");
-
-        equipoOtroGroup.style.display = "none";
-        document.getElementById("aEquipoOtro").value = "";
-
-        if (zona === "EXTERIOR") {
-            equipoGroup.style.display = "none";
-            equipoExteriorGroup.style.display = "block";
-            document.getElementById("aEquipoExterior").value = "";
-            return;
+        const zonaGroup = document.getElementById("aZonaGroup");
+        const zonaSelect = document.getElementById("aZona");
+        if (zonaGroup.style.display === "block" && zonaSelect.value) {
+            zonaGroup.style.display = "block";
         }
-        equipoExteriorGroup.style.display = "none";
-        equipoGroup.style.display = "block";
-        if (zona === "OTROS") {
-            populateSelect("aEquipo", getEquiposCombo(sede, ""), true);
-            return;
-        }
-        const zonaData = ZONA_EQUIPOS[sede]?.[zona] || [];
-        if (zonaData.length > 0) {
-            populateSelect("aEquipo", getEquiposCombo(sede, zona), true);
-        } else {
-            populateSelect("aEquipo", getEquiposCombo(sede, ""), true);
-        }
-    });
-
-    document.getElementById("aEquipo").addEventListener("change", function () {
-        const equipoOtroGroup = document.getElementById("aEquipoOtroGroup");
-        if (this.value === "__OTRO__") {
-            equipoOtroGroup.style.display = "block";
-            document.getElementById("aEquipoOtro").value = "";
-            document.getElementById("aEquipoOtro").focus();
-        } else {
-            equipoOtroGroup.style.display = "none";
-            document.getElementById("aEquipoOtro").value = "";
-        }
-        actualizarLabelFotos();
     });
 
     document.getElementById("aImagenes").addEventListener("change", async function () {
@@ -786,23 +730,6 @@ function loginTecnico() {
     }
 
     procesarLogin(null);
-}
-
-function actualizarLabelFotos() {
-    var sede = document.getElementById("aSedes").value;
-    var equipoSelect = document.getElementById("aEquipo").value;
-    var esEvento = sede === "EVENTO";
-    var esOtro = equipoSelect === "__OTRO__";
-    var label = document.getElementById("aFotosLabel");
-    if (esEvento || esOtro) {
-        label.textContent = "Fotos (maximo 2) - Obligatoria";
-        label.style.color = "#d32f2f";
-        label.style.fontWeight = "700";
-    } else {
-        label.textContent = "Fotos (maximo 2) - Opcional";
-        label.style.color = "";
-        label.style.fontWeight = "";
-    }
 }
 
 function mostrarMiniNav() {

@@ -195,59 +195,20 @@
                 </div>
             </div>
 
-            <div class="form-group" id="aEquipoGroup">
-                    <label for="aEquipo">Equipo</label>
-                <div class="combobox" id="aEquipoCombo">
-                    <div class="combobox-display" id="aEquipoDisplay" onclick="toggleCombobox('aEquipo')">Seleccionar equipo...</div>
-                    <input type="hidden" id="aEquipo" name="aEquipo">
-                    <div class="combobox-dropdown" id="aEquipoDropdown">
-                        <input type="text" class="combobox-search" id="aEquipoSearch" placeholder="Buscar equipo..." autocomplete="off" oninput="filtrarCombobox('aEquipo', this.value)">
-                        <div class="combobox-options" id="aEquipoOptions"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group" id="aEquipoLibreGroup" style="display:none;">
-                <label for="aEquipoLibre">Equipo del evento</label>
-                <input type="text" id="aEquipoLibre" placeholder="Escribe el equipo...">
-                <label for="aEventoLibre" style="margin-top:12px;">Evento</label>
-                <input type="text" id="aEventoLibre" placeholder="Nombre del evento...">
-            </div>
-
-            <div class="form-group" id="aEquipoExteriorGroup" style="display:none;">
-                <label for="aEquipoExterior">Equipo</label>
-                <input type="text" id="aEquipoExterior" placeholder="Escribe el nombre del equipo...">
-            </div>
-
-            <div class="form-group" id="aEquipoOtroGroup" style="display:none;">
-                <label for="aEquipoOtro">Nombre del equipo</label>
-                <input type="text" id="aEquipoOtro" placeholder="Escribe el nombre del nuevo equipo...">
+            <div class="form-group">
+                <label for="aDescripcion">Descripcion de la averia</label>
+                <textarea id="aDescripcion" rows="3" placeholder="Describe que le pasa al equipo..."></textarea>
             </div>
 
             <div class="form-group">
-                <label>¿El equipo presenta una averia?</label>
-                <div class="toggle-group">
-                    <button type="button" class="toggle-btn" id="aAvSi" data-value="Si" onclick="toggleAveriaToggle(this)">Si</button>
-                    <button type="button" class="toggle-btn" id="aAvNo" data-value="No" onclick="toggleAveriaToggle(this)">No</button>
+                <label id="aFotosLabel">Fotos - Obligatoria (maximo 2)</label>
+                <div class="photo-buttons">
+                    <label for="aImagenes" class="btn-photo">Tomar foto</label>
+                    <label for="aImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
                 </div>
-            </div>
-
-            <div id="aAveriaDetalle" style="display:none;">
-                <div class="form-group">
-                    <label for="aDescripcion">Descripcion de la averia</label>
-                    <textarea id="aDescripcion" rows="3" placeholder="Describe que le pasa al equipo..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label id="aFotosLabel">Fotos (maximo 2) - Opcional</label>
-                    <div class="photo-buttons">
-                        <label for="aImagenes" class="btn-photo">Tomar foto</label>
-                        <label for="aImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
-                    </div>
-                    <input type="file" id="aImagenes" accept="image/*" capture="environment" style="display:none;">
-                    <input type="file" id="aImagenesUpload" accept="image/*" multiple style="display:none;">
-                    <div id="aImagenesPreview" class="imagenes-preview"></div>
-                </div>
+                <input type="file" id="aImagenes" accept="image/*" capture="environment" style="display:none;">
+                <input type="file" id="aImagenesUpload" accept="image/*" multiple style="display:none;">
+                <div id="aImagenesPreview" class="imagenes-preview"></div>
             </div>
 
             <div class="form-actions">

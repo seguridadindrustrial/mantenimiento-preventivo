@@ -18,14 +18,15 @@ function enviarAveria(e) {
 
     const sedes = document.getElementById("aSedes").value;
     const zona = document.getElementById("aZona").value;
-    const fecha = document.getElementById("aFecha").value;
-    const hora = obtenerHora("a");
+    const ahora = new Date();
+    const fecha = ahora.getFullYear() + "-" + String(ahora.getMonth() + 1).padStart(2, "0") + "-" + String(ahora.getDate()).padStart(2, "0");
+    const hora = String(ahora.getHours()).padStart(2, "0") + ":" + String(ahora.getMinutes()).padStart(2, "0");
     const descripcion = document.getElementById("aDescripcion").value.trim();
 
     const equipo = descripcion;
 
-    if (!sedes || !fecha || !hora) {
-        alert("Completa sede, fecha y hora.");
+    if (!sedes) {
+        alert("Completa sede.");
         return;
     }
     const zonas = getAveriaZonas(sedes);
@@ -109,5 +110,4 @@ function clearAveriaForm() {
     averiaImagenes = [];
     var label = document.getElementById("aFotosLabel");
     label.textContent = "Fotos - Obligatoria (maximo 2)";
-    limpiarHora("a");
 }

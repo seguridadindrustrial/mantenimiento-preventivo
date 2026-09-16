@@ -565,13 +565,25 @@ function asignarTecnicoWeb() {
         mode: "no-cors",
         body: JSON.stringify({ tipo: "asignar_averia", numero: numeroAv, tecnicoNombre: tecnicoNombre })
     }).then(function() {
-        return fetch(APPS_SCRIPT_URL + "?accion=tecnico_contacto&nombre=" + encodeURIComponent(tecnicoNombre))
-            .then(function (r) { return r.json(); })
-            .catch(function () { return null; });
-    }).then(function (contacto) {
+        return Promise.all([
+            fetch(APPS_SCRIPT_URL + "?accion=tecnico_contacto&nombre=" + encodeURIComponent(tecnicoNombre))
+                .then(function (r) { return r.json(); })
+                .catch(function () { return null; }),
+            fetch(APPS_SCRIPT_URL + "?accion=fotos_averia&numero=" + encodeURIComponent(numeroAv))
+                .then(function (r) { return r.json(); })
+                .catch(function () { return null; })
+        ]);
+    }).then(function (resultados) {
+        var contacto = resultados[0];
+        var fotos = resultados[1];
+        var urlsFotos = (fotos && fotos.urls) || [];
         msg.innerHTML = '<div style="color:#2e7d32;font-weight:600;">Tecnico asignado correctamente</div>';
         if (contacto && contacto.whatsapp) {
-            var waUrl = "https://wa.me/" + contacto.whatsapp.replace(/[^0-9]/g, "") + "?text=" + encodeURIComponent("Hola " + tecnicoNombre + ", se te ha asignado la averia " + numeroAv);
+            var textoWa = "Hola " + tecnicoNombre + ", se te ha asignado la averia " + numeroAv;
+            if (urlsFotos.length > 0) {
+                textoWa += "\n\nFotos de la averia:\n" + urlsFotos.join("\n");
+            }
+            var waUrl = "https://wa.me/" + contacto.whatsapp.replace(/[^0-9]/g, "") + "?text=" + encodeURIComponent(textoWa);
             waDiv.style.display = "block";
             waDiv.innerHTML = '<a href="' + waUrl + '" target="_blank" style="display:inline-block;background:#25d366;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;width:100%;text-align:center;">Abrir WhatsApp y notificar</a>';
         }

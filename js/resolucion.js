@@ -66,7 +66,16 @@ function toggleRealizado(el) {
     }
     el.classList.add(el.dataset.value === "Si" ? "active-si" : "active-no");
     const grupo = document.getElementById("rDescripcionGroup");
-    grupo.style.display = el.dataset.value === "Si" ? "none" : "block";
+    const label = document.getElementById("rDescripcionLabel");
+    const textarea = document.getElementById("rDescripcion");
+    if (el.dataset.value === "Si") {
+        label.textContent = "¿Que hiciste para resolverlo?";
+        textarea.placeholder = "Describe lo que realizaste para solucionar la averia...";
+    } else {
+        label.textContent = "Descripcion del motivo";
+        textarea.placeholder = "Por que no se realizo / en que quedo...";
+    }
+    grupo.style.display = "block";
 }
 
 async function agregarImagenesResolucion(files) {
@@ -135,8 +144,12 @@ function enviarResolucion(e) {
         alert("Selecciona el tecnico.");
         return;
     }
-    if (realizado !== "Si" && !descripcion) {
-        alert("Escribe una descripcion.");
+    if (!descripcion) {
+        alert("Escribe una descripcion de lo realizado.");
+        return;
+    }
+    if (descripcion.length < 10) {
+        alert("La descripcion debe tener minimo 10 caracteres.");
         return;
     }
 

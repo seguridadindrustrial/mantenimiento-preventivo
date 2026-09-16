@@ -37,6 +37,10 @@ function enviarAveria(e) {
         alert("Escribe una descripcion de la averia.");
         return;
     }
+    if (descripcion.length < 10) {
+        alert("La descripcion debe tener minimo 10 caracteres.");
+        return;
+    }
     if (averiaImagenes.length === 0) {
         alert("Debes tomar al menos 1 foto.");
         return;

@@ -712,6 +712,11 @@ textarea:focus {
     border-color: #63bb60;
 }
 
+.ayuda-tecnico-row .ayuda-tecnico-nombre {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
 input[type="file"] {
     font-size: 0.85rem;
     color: #555;

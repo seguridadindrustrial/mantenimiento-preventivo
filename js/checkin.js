@@ -54,6 +54,24 @@ function irAlPaso2() {
                 return;
             }
         }
+        var otroAyudaToggle = document.querySelector("#otroAyudaSi.active-si, #otroAyudaNo.active-si, #otroAyudaSi.active-no, #otroAyudaNo.active-no");
+        if (!otroAyudaToggle) {
+            alert("Responde Si o No en necesitaste ayuda.");
+            return;
+        }
+        var otroAyudaTecnicos = [];
+        if (otroAyudaToggle.dataset.value === "Si") {
+            var cantOtro = parseInt(document.getElementById("otroAyudaCantidad").value, 10);
+            if (!cantOtro || cantOtro < 1) {
+                alert("Indica la cantidad de tecnicos que te ayudaron.");
+                return;
+            }
+            otroAyudaTecnicos = getAyudaTecnicos("otroAyuda");
+            if (otroAyudaTecnicos.length !== cantOtro) {
+                alert("Selecciona a cada uno de los " + cantOtro + " tecnico(s) que te ayudaron.");
+                return;
+            }
+        }
         var turno = calcularTurno(hora);
         var idUnico = generarIdUnico(fecha, hora, sedes, equipo, tecnicoNombre);
         if (yaEnviado(idUnico)) {
@@ -71,7 +89,10 @@ function irAlPaso2() {
             rutina: "OTRO",
             checkinKeys: [], checkinValues: [],
             descripcion: otroDesc,
-            repuestos: otrosRepuestos
+            repuestos: otrosRepuestos,
+            ayuda: otroAyudaToggle.dataset.value,
+            ayudaCantidad: otroAyudaToggle.dataset.value === "Si" ? otroAyudaTecnicos.length : 0,
+            ayudaTecnicos: otroAyudaTecnicos
         };
         marcarEnviado(idUnico);
         saveToLocalStorage(registroOtro);
@@ -544,6 +565,25 @@ function enviarFormulario(e) {
         }
     }
 
+    const ayudaToggle = document.querySelector("#ayudaSi.active-si, #ayudaNo.active-si, #ayudaSi.active-no, #ayudaNo.active-no");
+    if (!ayudaToggle) {
+        alert("Responde Si o No en necesitaste ayuda.");
+        return;
+    }
+    let ayudaTecnicos = [];
+    if (ayudaToggle.dataset.value === "Si") {
+        const cant = parseInt(document.getElementById("ayudaCantidad").value, 10);
+        if (!cant || cant < 1) {
+            alert("Indica la cantidad de tecnicos que te ayudaron.");
+            return;
+        }
+        ayudaTecnicos = getAyudaTecnicos();
+        if (ayudaTecnicos.length !== cant) {
+            alert("Selecciona a cada uno de los " + cant + " tecnico(s) que te ayudaron.");
+            return;
+        }
+    }
+
     const turno = calcularTurno(hora);
     const idUnico = generarIdUnico(fecha, hora, sedes, equipo, tecnicoNombre);
 
@@ -583,7 +623,10 @@ function enviarFormulario(e) {
         checkinKeys: checkinKeysFinal,
         checkinValues: checkinValuesFinal,
         descripcion: descripcion,
-        repuestos: repuestos
+        repuestos: repuestos,
+        ayuda: ayudaToggle.dataset.value,
+        ayudaCantidad: ayudaToggle.dataset.value === "Si" ? ayudaTecnicos.length : 0,
+        ayudaTecnicos: ayudaTecnicos
     };
 
     marcarEnviado(idUnico);
@@ -633,6 +676,13 @@ function generarResumenMantenimiento(registro) {
         registro.repuestos.forEach(function(r) {
             lineas.push("- " + r.nombre + (r.cantidad ? " x" + r.cantidad : ""));
         });
+    }
+    if (registro.ayuda) {
+        lineas.push("");
+        lineas.push("Necesito ayuda: " + registro.ayuda);
+        if (registro.ayuda === "Si" && registro.ayudaTecnicos && registro.ayudaTecnicos.length) {
+            lineas.push("Tecnicos que ayudaron: " + registro.ayudaTecnicos.join(", "));
+        }
     }
     return lineas.join("\n");
 }

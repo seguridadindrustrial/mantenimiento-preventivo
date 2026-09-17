@@ -109,6 +109,21 @@
                         <div id="otroRepuestosRows"></div>
                         <button type="button" class="btn-secondary btn-add" onclick="agregarRepuestoRow('otroRepuestosRows')">＋ Agregar repuesto</button>
                     </div>
+
+                    <div class="form-group">
+                        <label>Necesitaste ayuda</label>
+                        <p class="hint">¿Necesitaste ayuda de otro tecnico para este mantenimiento?</p>
+                        <div class="toggle-group">
+                            <button type="button" class="toggle-btn" id="otroAyudaSi" data-value="Si" onclick="toggleAyudaToggle(this, 'otroAyuda')">Si</button>
+                            <button type="button" class="toggle-btn" id="otroAyudaNo" data-value="No" onclick="toggleAyudaToggle(this, 'otroAyuda')">No</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="otroAyudaGroup" style="display:none;">
+                        <label for="otroAyudaCantidad">Cantidad de tecnicos que te ayudaron</label>
+                        <input type="number" id="otroAyudaCantidad" min="1" max="10" placeholder="Ej: 1" oninput="renderAyudaTecnicos('otroAyuda')">
+                        <div id="otroAyudaTecnicosRows"></div>
+                    </div>
                 </div>
 
                 <div class="form-actions" id="formActions">
@@ -151,6 +166,21 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Necesitaste ayuda</label>
+                    <p class="hint">¿Necesitaste ayuda de otro tecnico para este mantenimiento?</p>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn" id="ayudaSi" data-value="Si" onclick="toggleAyudaToggle(this)">Si</button>
+                        <button type="button" class="toggle-btn" id="ayudaNo" data-value="No" onclick="toggleAyudaToggle(this)">No</button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="ayudaGroup" style="display:none;">
+                    <label for="ayudaCantidad">Cantidad de tecnicos que te ayudaron</label>
+                    <input type="number" id="ayudaCantidad" min="1" max="10" placeholder="Ej: 1" oninput="renderAyudaTecnicos()">
+                    <div id="ayudaTecnicosRows"></div>
+                </div>
+
+                <div class="form-group">
                     <label for="descripcion">Descripcion (opcional)</label>
                     <textarea id="descripcion" name="descripcion" rows="3" placeholder="Observaciones adicionales..."></textarea>
                 </div>
@@ -181,11 +211,6 @@
                 <select id="aZona" name="aZona">
                     <option value="" disabled selected>Seleccionar zona...</option>
                 </select>
-            </div>
-
-            <div class="form-group" style="background:#eef3fb;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
-                <span style="color:#1976d2;font-weight:600;">Fecha y hora automaticas</span>
-                <span style="display:block;color:#555;font-size:13px;">El sistema registra la fecha y hora actual automáticamente.</span>
             </div>
 
             <div class="form-group">

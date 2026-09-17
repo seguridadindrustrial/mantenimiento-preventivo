@@ -370,6 +370,11 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("otroRepuestosRows").innerHTML = "";
             document.getElementById("otroRepSi").classList.remove("active-si", "active-no");
             document.getElementById("otroRepNo").classList.remove("active-si", "active-no");
+            document.getElementById("otroAyudaGroup").style.display = "none";
+            document.getElementById("otroAyudaCantidad").value = "";
+            document.getElementById("otroAyudaTecnicosRows").innerHTML = "";
+            document.getElementById("otroAyudaSi").classList.remove("active-si", "active-no");
+            document.getElementById("otroAyudaNo").classList.remove("active-si", "active-no");
         }
     });
 

@@ -22,7 +22,6 @@ function abrirResolucion(av) {
         (av.zona ? " | Zona: " + av.zona : "") +
         " | Descripcion: " + (av.descripcion || "");
     document.getElementById("resolucionEquipo").textContent = "Equipo: " + (av.equipo || "No especificado");
-    limpiarHora("r");
     clearResolucionForm();
     configurarTecnicoResolucion(av.asignado || "");
 
@@ -123,8 +122,6 @@ function enviarResolucion(e) {
     const toggles = ["rSi", "rNo", "rProceso", "rFalsa"].map(id => document.getElementById(id));
     const activo = toggles.find(b => b.classList.contains("active-si") || b.classList.contains("active-no"));
     const realizado = activo ? activo.dataset.value : "";
-    const fecha = document.getElementById("rFecha").value;
-    const hora = obtenerHora("r");
     const tecnico = document.getElementById("rTecnico").value;
     const descripcion = document.getElementById("rDescripcion").value.trim();
 
@@ -134,10 +131,6 @@ function enviarResolucion(e) {
     }
     if (!realizado) {
         alert("Indica el estado de la averia (Si/No/En proceso/Falsa averia).");
-        return;
-    }
-    if (!fecha || !hora) {
-        alert("Completa fecha y hora.");
         return;
     }
     if (!tecnico) {
@@ -177,8 +170,6 @@ function enviarResolucion(e) {
     const registro = {
         tipo: "resolucion",
         numero: numero,
-        fecha: fecha,
-        hora: hora,
         tecnico: tecnico,
         realizado: realizado,
         descripcion: descripcion,
@@ -223,7 +214,6 @@ function marcarAveriaResuelta(numero) {
 }
 
 function clearResolucionForm() {
-    document.getElementById("rFecha").value = "";
     var rTecnicoSelect = document.getElementById("rTecnico");
     rTecnicoSelect.disabled = false;
     rTecnicoSelect.value = "";
@@ -241,7 +231,6 @@ function clearResolucionForm() {
         document.getElementById(id).classList.remove("active-si", "active-no");
     });
     resolucionImagenes = [];
-    limpiarHora("r");
 }
 
 function volverAlLogin() {

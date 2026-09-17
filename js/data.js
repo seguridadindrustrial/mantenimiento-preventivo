@@ -1091,4 +1091,4 @@ const EQUIPO_RUTINA = {
     "TOPE FRANCES A GAS 2": "Rutina Cocinas",
 };
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbztZooL8UQUrlol1ah19eBlpZIJ0A1-66lilvgw9XRP4xeU5EcuqsJK5M12xwWXVamkew/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxLQkf9gdudyCUNQfWll8uZjD4nERe1IssuB4Gs_dhJxr_2G2EPFVkU-jC4F_zNEOpoxw/exec";

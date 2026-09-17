@@ -661,8 +661,13 @@ function generarResumenMantenimiento(registro) {
     lineas.push("Actividades:");
     var keys = registro.checkinKeys || [];
     var values = registro.checkinValues || [];
+    var esCorrectivo = registro.mantenimiento === "CORRECTIVO";
     for (var i = 0; i < keys.length && i < values.length; i++) {
-        if (values[i] === "Si" || values[i] !== "") {
+        if (esCorrectivo) {
+            if (values[i] === "Si") {
+                lineas.push("- " + keys[i]);
+            }
+        } else if (values[i] === "Si" || values[i] !== "") {
             lineas.push("- " + keys[i] + ": " + (values[i] || "-"));
         }
     }

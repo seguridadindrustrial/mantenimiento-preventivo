@@ -56,7 +56,7 @@ function irAlPaso2() {
         }
         var otroAyudaToggle = document.querySelector("#otroAyudaSi.active-si, #otroAyudaNo.active-si, #otroAyudaSi.active-no, #otroAyudaNo.active-no");
         if (!otroAyudaToggle) {
-            alert("Responde Si o No en necesitaste ayuda.");
+            alert("Responde Si o No en necesitaste apoyo.");
             return;
         }
         var otroAyudaTecnicos = [];
@@ -567,7 +567,7 @@ function enviarFormulario(e) {
 
     const ayudaToggle = document.querySelector("#ayudaSi.active-si, #ayudaNo.active-si, #ayudaSi.active-no, #ayudaNo.active-no");
     if (!ayudaToggle) {
-        alert("Responde Si o No en necesitaste ayuda.");
+        alert("Responde Si o No en necesitaste apoyo.");
         return;
     }
     let ayudaTecnicos = [];

@@ -1355,6 +1355,17 @@ function navegar(modulo, desdeAtras) {
         }
     }
     moduloActivo = modulo;
+    // Se apunta en que modulo se queda el usuario. Si no, lo guardado se
+    // quedaria congelado en "inicio" desde el momento del ingreso, y recargar
+    // en mitad de una tarea tiraria el trabajo de nuevo.
+    if (usuarioActual) guardarSesion({
+        nombre: usuarioActual.nombre,
+        tipo: usuarioActual.tipo,
+        rol: usuarioActual.rol,
+        cedula: usuarioActual.cedula,
+        asistencia: usuarioActual.asistencia,
+        __pin: pinEnMemoria
+    });
     cerrarMenuPanel();
     cerrarUserMenu();
     actualizarBotonAtras();
@@ -5571,4 +5582,8 @@ function notiSonar() {
     } catch (e) {}
 }
 
-console.log("[APP] v2026-09-21f sin-fecha-hora (sistema) + OT sin falsa orden");
+// Esta linea es el comprobante de version. Cuando algo "no me funciona" hay
+// que empezar por mirar que version esta cargada en la consola: casi todas las
+// veces resultaba ser una copia vieja que el navegador no habia soltado.
+// Si aqui no sale v2026-09-28-sesion, recargar sin cache.
+console.log("[APP] v2026-09-28-sesion (PIN condicional + sesion al refrescar)");

@@ -99,6 +99,27 @@ function limpiarHora(prefix) {
     if (el) el.value = "";
 }
 
+// Etiqueta y campo se montan por separado en varios formularios. Cuando se
+// arma el HTML con innerHTML sobre un nodo que ya esta en la pagina, el parser
+// inserta el <label for="X"> antes que el <input id="X"> que le sigue, y
+// durante ese instante el label no tiene a quien apuntar. Chrome lo registra
+// como "Incorrect use of <label for=...>". El DOM final queda bien y el
+// lector de pantalla si lo lee, pero el aviso es ruido.
+//
+// Aqui se escoge la otra via: el HTML se arma con data-for y el enlace se
+// hace despues de montado, que es cuando el campo ya existe de verdad.
+function activarLabels(root) {
+    var etiquetas = (root || document).querySelectorAll("label[data-for]");
+    Array.prototype.forEach.call(etiquetas, function (l) {
+        var destino = l.getAttribute("data-for");
+        // Sin este guardia, una segunda llamada sobre los mismos nodos
+        // escribiria for="null" y dejaria las etiquetas sin campo.
+        if (!destino) return;
+        l.htmlFor = destino;
+        l.removeAttribute("data-for");
+    });
+}
+
 function populateSelect(id, items, agregarOtro) {
     var isCombo = (id === "equipo" || id === "aEquipo");
 

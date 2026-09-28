@@ -236,8 +236,8 @@ function renderRutina(equipo, mantenimiento) {
                         (f.type === "number" && f.max !== undefined ? ` max="${f.max}"` : "");
                     camposHtml += `
                         <div class="checkin-sub-row">
-                            <label>${f.label}</label>
-                            <input type="${tipoInput}" class="checkin-sub-input" data-field="${fi}"${minMax}>
+                            <label data-for="checkinSub_${index}_f_${fi}">${f.label}</label>
+                            <input type="${tipoInput}" id="checkinSub_${index}_f_${fi}" class="checkin-sub-input" data-field="${fi}"${minMax}>
                         </div>`;
                 }
             });
@@ -256,6 +256,7 @@ function renderRutina(equipo, mantenimiento) {
             </div>
             ${subHtml}
         `;
+        activarLabels(div);
         container.appendChild(div);
     });
 

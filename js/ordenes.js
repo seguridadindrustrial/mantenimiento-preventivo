@@ -71,6 +71,7 @@ function tecOrdenesSubVista(sub) {
     if (sub === "crear") {
         if (typeof pushSubVolver === "function") pushSubVolver("Volver a Orden de trabajo", renderTecOrdenesSubVistaCards);
         cont.innerHTML = formOrdenHTML(true);
+        activarLabels(cont);
         populateSelect("oSedes", SEDES);
         return;
     }
@@ -265,6 +266,7 @@ function ordenesSubVista(sub) {
     if (sub === "crear") {
         setSubVolver("Volver a Orden de trabajo", renderOrdenes);
         cont.innerHTML = formOrdenHTML();
+        activarLabels(cont);
         populateSelect("oSedes", SEDES);
         cargarTecnicosParaOrden();
         return;
@@ -295,14 +297,14 @@ function ordenesSubVista(sub) {
 
 function formOrdenHTML(paraTecnico) {
     var html = '<form id="ordenForm" onsubmit="guardarOrden(event)" novalidate>' +
-        '<div class="form-group"><label for="oSedes">Sede</label><select id="oSedes" onchange="onOrdSedeChange()"><option value="" disabled selected>Seleccionar sede...</option></select></div>' +
-        '<div class="form-group" id="oZonaGroup" style="display:none;"><label for="oZona">Zona</label><select id="oZona" onchange="onOrdZonaChange()"><option value="" disabled selected>Seleccionar zona...</option></select></div>' +
-        '<div class="form-group"><label for="oEquipo">Equipo</label><select id="oEquipo" onchange="onOrdEquipoChange()"><option value="" disabled selected>Seleccionar equipo...</option></select></div>' +
-        '<div class="form-group" id="oEquipoOtroGroup" style="display:none;"><label for="oEquipoOtro">Nombre del equipo</label>' +
+        '<div class="form-group"><label data-for="oSedes">Sede</label><select id="oSedes" onchange="onOrdSedeChange()"><option value="" disabled selected>Seleccionar sede...</option></select></div>' +
+        '<div class="form-group" id="oZonaGroup" style="display:none;"><label data-for="oZona">Zona</label><select id="oZona" onchange="onOrdZonaChange()"><option value="" disabled selected>Seleccionar zona...</option></select></div>' +
+        '<div class="form-group"><label data-for="oEquipo">Equipo</label><select id="oEquipo" onchange="onOrdEquipoChange()"><option value="" disabled selected>Seleccionar equipo...</option></select></div>' +
+        '<div class="form-group" id="oEquipoOtroGroup" style="display:none;"><label data-for="oEquipoOtro">Nombre del equipo</label>' +
         '<input type="text" id="oEquipoOtro" maxlength="80" placeholder="Escribe el nombre del equipo" autocomplete="off">' +
         '<div class="hint">Se usara solo en esta orden. No se agrega a la lista de equipos.</div></div>' +
-        '<div class="form-group"><label for="oEspecialidad">Especialidad</label><select id="oEspecialidad">' + ESPECIALIDADES.map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join("") + '</select></div>' +
-        '<div class="form-group"><label for="oDescripcion">Descripcion</label><textarea id="oDescripcion" rows="3" placeholder="' + (paraTecnico ? "Describe el trabajo que realizaste..." : "Describe el trabajo a realizar...") + '"></textarea></div>';
+        '<div class="form-group"><label data-for="oEspecialidad">Especialidad</label><select id="oEspecialidad">' + ESPECIALIDADES.map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join("") + '</select></div>' +
+        '<div class="form-group"><label data-for="oDescripcion">Descripcion</label><textarea id="oDescripcion" rows="3" placeholder="' + (paraTecnico ? "Describe el trabajo que realizaste..." : "Describe el trabajo a realizar...") + '"></textarea></div>';
     if (paraTecnico) {
         html +=
             '<div class="form-group"><label>Necesitaste apoyo</label>' +
@@ -312,14 +314,14 @@ function formOrdenHTML(paraTecnico) {
             '<button type="button" class="toggle-btn" id="otAyudaNo" data-value="No" onclick="toggleAyudaToggle(this,\'otAyuda\')">No</button>' +
             '</div></div>' +
             '<div class="form-group" id="otAyudaGroup" style="display:none;">' +
-            '<label for="otAyudaCantidad">Cantidad de tecnicos que te ayudaron</label>' +
+            '<label data-for="otAyudaCantidad">Cantidad de tecnicos que te ayudaron</label>' +
             '<input type="number" id="otAyudaCantidad" min="1" max="10" placeholder="Ej: 1" oninput="renderAyudaTecnicos(\'otAyuda\')">' +
             '<div id="otAyudaTecnicosRows"></div>' +
             '</div>' +
             '<div class="form-actions"><button type="submit" class="btn-primary" id="btnGuardarOrden">Registrar orden</button></div>';
     } else {
         html +=
-            '<div class="form-group"><label for="oTecnico">Tecnico asignado</label><select id="oTecnico"><option value="" disabled selected>Cargando tecnicos...</option></select></div>' +
+            '<div class="form-group"><label data-for="oTecnico">Tecnico asignado</label><select id="oTecnico"><option value="" disabled selected>Cargando tecnicos...</option></select></div>' +
             '<div style="color:#1976d2;font-size:.8rem;margin-bottom:10px;">La fecha y la hora de la orden las registra el sistema automaticamente.</div>' +
             '<div class="form-actions"><button type="submit" class="btn-primary" id="btnGuardarOrden">Crear y asignar</button></div>';
     }

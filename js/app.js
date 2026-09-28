@@ -1657,6 +1657,14 @@ function guardarSesion(personal) {
             cedula: personal.cedula || null,
             asistencia: personal.asistencia === true ? true : (personal.asistencia === false ? false : undefined),
             pin: personal.__pin || "",
+            // Se guarda tambien el ultimo mapa de modulos compartidos conocido.
+            // Si al recargar esa consulta falla por datos, al menos se sigue
+            // viendo lo que otro admin habia compartido, en vez de perderlo
+            // en silencio hasta la proxima entrada.
+            compartir: {
+                Admin: (compartirAdmin && compartirAdmin.Admin) || [],
+                Admin2: (compartirAdmin && compartirAdmin.Admin2) || []
+            },
             modulo: moduloActivo || "inicio",
             guardado: Date.now()
         }));
@@ -1684,6 +1692,9 @@ function restaurarSesion() {
     if (!s) return false;
 
     var restaurar = function (compartir) {
+        // Si no llega el mapa del servidor, se usa el de la ultima vez que
+        // si llego. Recargar no debe quitarle modulos a nadie.
+        var mapa = (compartir && (compartir.Admin || compartir.Admin2)) ? compartir : (s.compartir || null);
         usuarioActual = {
             nombre: s.nombre,
             tipo: s.tipo,
@@ -1695,8 +1706,8 @@ function restaurarSesion() {
         tecnicoNombre = s.nombre;
         empleadoNombre = s.nombre;
         compartirAdmin = {
-            Admin: (compartir && compartir.Admin) || [],
-            Admin2: (compartir && compartir.Admin2) || []
+            Admin: (mapa && mapa.Admin) || [],
+            Admin2: (mapa && mapa.Admin2) || []
         };
         modulosCompartidos = (compartirAdmin[NUESTROS_ROLES.ADMIN] || []).length > 0;
         document.getElementById("loginSection").style.display = "none";
@@ -1712,14 +1723,20 @@ function restaurarSesion() {
         iniciarRefrescoVivo();
     };
 
-    // El mapa de compartidos se pide al servidor, pero ese endpoint no pasa
-    // por el limitador, asi que tampoco gasta intentos. Si falla, se abre la
-    // sesion igualmente: solo afecta a que se vean los modulos que otro
-    // admin haya compartido, y eso se corrige al volver a entrar.
+    // Si la peticion del mapa falla se usa el que quedo guardado en la sesion.
+    // Perderlo en silencio seria peor que esperar: quien tiene modulos
+    // compartidos se quedaria sin verlos y no sabria por que.
     var pedirCompartidos = function (cb) {
         fetch(APPS_SCRIPT_URL + "?accion=estado_compartido")
             .then(function (r) { return r.json(); })
-            .then(function (r) { cb(r && r.status === "ok" ? r : null); })
+            .then(function (r) {
+                var mapa = (r && r.status === "ok") ? r : null;
+                if (mapa) guardarSesion({
+                    nombre: s.nombre, tipo: s.tipo, rol: s.rol, cedula: s.cedula,
+                    asistencia: s.asistencia, __pin: pinEnMemoria
+                });
+                cb(mapa);
+            })
             .catch(function () { cb(null); });
     };
 
@@ -1746,7 +1763,13 @@ function restaurarSesion() {
 
 // El PIN se pide con un dialogo, no con el formulario de login: la sesion ya
 // esta puesta, solo falta el dato para poder marcar asistencia.
-function pedirPinAlRestaurar(s, alTerminar) {
+//
+// Esto solo aparece en sesiones viejas, abiertas antes de que el PIN se
+// guardara, o si el almacenamiento se limpio a medias. Nunca en el refresco
+// normal. Aun asi, un PIN mal escrito aqui NO borra la sesion: eso obligaba a
+// volver a poner cedula y PIN completos, que es justo lo que se quiere evitar.
+function pedirPinAlRestaurar(s, alTerminar, intento) {
+    intento = intento || 1;
     var pin = window.prompt("Tu cedula tiene PIN. Escribelo para poder marcar asistencia.\n\n(Se queda solo en esta pestana y se borra al cerrar.)", "");
     if (pin === null) { cerrarSesion(); return; }
     pin = String(pin).trim();
@@ -1764,10 +1787,17 @@ function pedirPinAlRestaurar(s, alTerminar) {
             } else if (r && r.status === "bloqueado") {
                 alert("Demasiados intentos. Espera un momento antes de volver a intentarlo.");
                 cerrarSesion();
-            } else {
+            } else if (intento < 2) {
+                // Un reintento, y nada mas: aqui cada fallo es un intento real
+                // contra el limitador de cinco.
                 alert("El PIN no es correcto.");
-                borrarSesion();
-                document.getElementById("loginSection").style.display = "block";
+                pedirPinAlRestaurar(s, alTerminar, intento + 1);
+            } else {
+                // Se entra igual, sin PIN guardado. Perder la sesion seria peor
+                // que dejar la asistencia sin poder marcar, y el proximo
+                // refresco vuelve a preguntar.
+                alert("El PIN no es correcto. Entra de todos modos; para marcar asistencia puede que te lo vuelva a pedir.");
+                alTerminar();
             }
         })
         .catch(function () { alTerminar(); });

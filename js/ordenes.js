@@ -382,15 +382,22 @@ function populateOEquipo(sede, zona) {
             lista = SEDE_EQUIPOS[sede];
         }
     } catch (e) {}
-    (lista || []).forEach(function (eq) {
+    lista = lista || [];
+    if (lista.length === 0) {
+        sel.innerHTML = '<option value="" disabled selected>Sin equipos en esta sede o zona</option>';
+    }
+    lista.forEach(function (eq) {
         var opt = document.createElement("option");
         opt.value = eq;
         opt.textContent = eq;
         sel.appendChild(opt);
     });
-    if (sel.options.length <= 1) {
-        sel.innerHTML = '<option value="" disabled selected>Sin equipos para esta sede/zona</option>';
-    }
+    // "OTRO" sirve para encargar un trabajo de algo que no esta en el catalogo.
+    // Solo se usa en esta orden: nunca se agrega a la lista de equipos.
+    var otro = document.createElement("option");
+    otro.value = "OTRO";
+    otro.textContent = "OTRO";
+    sel.appendChild(otro);
 }
 
 function guardarOrden(e) {

@@ -9,6 +9,24 @@ function postJSON(body) {
     }).then(function () {}).catch(function () {});
 }
 
+// Igual que postJSON pero SI lee la respuesta del servidor, para poder avisarle
+// al usuario cuando algo si fue rechazado y por que. No manda Content-Type para
+// que el navegador no pida permiso previo (preflight) y no falle.
+function postJSONRespuesta(body) {
+    invalidarCacheV();
+    return fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(body)
+    }).then(function (r) {
+        return r.text().then(function (t) {
+            try { return JSON.parse(t); }
+            catch (e) { return { status: "error", message: "El servidor no devolvio una respuesta valida." }; }
+        });
+    }).catch(function () {
+        return { status: "error", message: "Sin conexion con el servidor. Intenta de nuevo." };
+    });
+}
+
 function invalidarCacheV() {
     try {
         var keys = [];

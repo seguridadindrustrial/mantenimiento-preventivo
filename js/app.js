@@ -1474,16 +1474,39 @@ function irAtras() {
     volverModuloAnterior();
 }
 
+// El boton de volver va pegado debajo de la cabecera, siempre a la misma
+// altura. Antes se posicionaba una sola vez, y como la cabecera cambia de
+// tamano segun el modulo, el boton se quedaba flotando en cualquier lado.
+var botonVolverObs = null;
 function posicionarBotonVolver() {
     var wrap = document.getElementById("btnAtrasPanelWrap");
     if (!wrap) return;
     var header = document.querySelector(".image");
     var h = header && header.offsetHeight ? header.offsetHeight : 96;
     wrap.style.top = (h + 10) + "px";
+    wrap.style.position = "fixed";
+    wrap.style.left = "0";
+    wrap.style.right = "0";
+    wrap.style.paddingLeft = "16px";
+    wrap.style.background = "transparent";
+    wrap.style.pointerEvents = "none";
+    var btn = document.getElementById("btnAtrasPanel");
+    if (btn) btn.style.pointerEvents = "auto";
+    if (!botonVolverObs && header && typeof ResizeObserver !== "undefined") {
+        botonVolverObs = new ResizeObserver(function () { posicionarBotonVolver(); });
+        botonVolverObs.observe(header);
+    }
 }
 
 window.addEventListener("resize", function () {
     posicionarBotonVolver();
+});
+window.addEventListener("orientationchange", function () {
+    setTimeout(posicionarBotonVolver, 120);
+});
+document.addEventListener("DOMContentLoaded", function () {
+    posicionarBotonVolver();
+    setTimeout(posicionarBotonVolver, 300);
 });
 
 var subVolverStack = [];
@@ -3414,7 +3437,7 @@ function editarAveriaModulo(numero) {
 }
 
 function guardarEdicionAveria(numero) {
-    postJSON({
+    postJSONRespuesta({
         tipo: "editar_averia",
         numero: numero,
         empleado: usuarioActual ? usuarioActual.nombre : "",
@@ -3425,24 +3448,24 @@ function guardarEdicionAveria(numero) {
         asignado: document.getElementById("edAsignado").value.trim(),
         descripcion: document.getElementById("edDescripcion").value.trim()
     }).then(function (r) {
-        if (r && r.status === "error") { alert(r.message || "No se pudo editar."); return; }
+        if (!r || r.status !== "ok") { alert((r && r.message) || "No se pudo editar la averia."); return; }
         borrarCacheV("averias");
         alert("Averia " + numero + " actualizada.");
         if (typeof notiRefrescar === "function") notiRefrescar(true);
         renderAsignarAverias();
-    }).catch(function () { alert("Sin conexion. No se pudo editar la averia."); });
+    });
 }
 
 function borrarAveriaModulo(numero) {
     if (!confirm("Borrar la averia " + numero + "?\n\nTambien se eliminaran sus fotos de Drive. Esto no se puede deshacer.")) return;
-    postJSON({ tipo: "borrar_averia", numero: numero, empleado: usuarioActual ? usuarioActual.nombre : "" })
+    postJSONRespuesta({ tipo: "borrar_averia", numero: numero, empleado: usuarioActual ? usuarioActual.nombre : "" })
         .then(function (r) {
-            if (r && r.status === "error") { alert(r.message || "No se pudo borrar."); return; }
+            if (!r || r.status !== "ok") { alert((r && r.message) || "No se pudo borrar la averia."); return; }
             borrarCacheV("averias");
             alert("Averia " + numero + " borrada.");
             if (typeof notiRefrescar === "function") notiRefrescar(true);
             renderAsignarAverias();
-        }).catch(function () { alert("Sin conexion. No se pudo borrar la averia."); });
+        });
 }
 
 function asignarAveriaModulo(numero) {

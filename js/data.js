@@ -1,4 +1,4 @@
-// data.js - Constantes y datos globales de la aplicacion
+﻿// data.js - Constantes y datos globales de la aplicacion
 
 
 let SEDES = [];
@@ -226,7 +226,7 @@ const ZONA_EQUIPOS = {
             "A/A 8000 BTU VENTANA // DORMITORIO",
             "MICROONDAS # 2",
             "REVERBERO DE MESA",
-            "PECERAS PEQUEÑAS",
+            "PECERAS PEQUEÃ‘AS",
             "LAMPARAS DE CALOR",
             "ESCALINATAS",
             "HORNO PIZZERO OONI",
@@ -482,7 +482,7 @@ const SEDE_EQUIPOS = {
         "PANTALLAS DE VIDRIO",
         "PARRILLERAS",
         "PECERAS GRANDES",
-        "PECERAS PEQUEÑAS",
+        "PECERAS PEQUEÃ‘AS",
         "PINTURA EXTERNA",
         "PINTURA INTERNA",
         "PLANCHAS A GAS",
@@ -589,7 +589,7 @@ const RUTINA_PREVENTIVO = {
     "Rutina Molinos de Cafe": [
         "Chequeo de Componentes Electricos",
         "Limpieza de Cavesales",
-        "Verificar Ruidos Extraños en el Motor (Engrasar de ser necesario o remplazar)",
+        "Verificar Ruidos ExtraÃ±os en el Motor (Engrasar de ser necesario o remplazar)",
         "Verificar Estado de las Muelas del Molino",
         "Verificar Estado de las Tolvas y Estructura General (Ajustar de ser necesario)",
     ],
@@ -602,7 +602,7 @@ const RUTINA_PREVENTIVO = {
     ],
     "Rutina Escalinatas": [
         "Chequeo de Estado de la Pintura (Pintar de ser necesario)",
-        "Verificar Estado de la Madera (Ver que no este dañada o podrida)",
+        "Verificar Estado de la Madera (Ver que no este daÃ±ada o podrida)",
     ],
     "Rutina Reberberos": [
         "Verificar Entrada de Gas (Regulador y Manguera )",
@@ -646,7 +646,7 @@ const RUTINA_PREVENTIVO = {
     "Rutina Amasadora": [
         "Verificar componentes electricos",
         "Chequar Tension de correa (cambiar de ser necesario)",
-        "Chequeo de Motor (Descartar ruidos extraños)"
+        "Chequeo de Motor (Descartar ruidos extraÃ±os)"
     ],
     "Rutina Planchas Electricas": [
         "Chequeo de componentes electricos",
@@ -664,7 +664,7 @@ const RUTINA_PREVENTIVO = {
         "Limpieza de aspas ",
         "Limpieza de rejillas ",
         "Chequeo y ajustes de componentes electricos",
-        "Chequear motor electrico (ruidos extraños en rodamiento)"
+        "Chequear motor electrico (ruidos extraÃ±os en rodamiento)"
     ],
     "Rutina Motores de Extracion": [
         "Chequeo y ajuste de correa",
@@ -732,7 +732,7 @@ const RUTINA_PREVENTIVO = {
         "chequeo de sistema de deteccion de incendios"
     ],
     "Rutina Chambrana": [
-        "Revisión de reguetones",
+        "RevisiÃ³n de reguetones",
         "Rebicion de patas (revicion de soldadura )",
         "Revicion de estado de pintura"
     ]
@@ -781,7 +781,7 @@ const RUTINA_TALLER = {
                 {label:"Vender", type: "toggle", 
                     expand:[ 
                         {label:"Cuanto", type: "number"},
-                        {label: "N° de Factura", type: "Text"}
+                        {label: "NÂ° de Factura", type: "Text"}
                     ]
                 }
             ]
@@ -799,14 +799,14 @@ const RUTINA_SEMANARIO_RUICES = [
             { label: "Armario de pasapalos", type: "number" },
             { label: "Armario To Go", type: "number" },
             { label: "Armario refrigerado", type: "number" },
-            { label: "Mesón refrigerado", type: "number" },
+            { label: "MesÃ³n refrigerado", type: "number" },
             { label: "Aire acondicionado", type: "select", options: ["Encendido", "Apagado"] },
-            { label: "Extracción", type: "select", options: ["Encendido", "Apagado"] },
-            { label: "Inyección", type: "select", options: ["Encendido", "Apagado"] },
+            { label: "ExtracciÃ³n", type: "select", options: ["Encendido", "Apagado"] },
+            { label: "InyecciÃ³n", type: "select", options: ["Encendido", "Apagado"] },
             { label: "Llave de gas", type: "select", options: ["Abierta", "Cerrada"] },
             { label: "Tanques en reserva", type: "number" },
             { label: "Tanques en uso", type: "number" },
-            { label: "Bomba de agua", type: "select", options: ["Automático", "Manual", "Apagada"] },
+            { label: "Bomba de agua", type: "select", options: ["AutomÃ¡tico", "Manual", "Apagada"] },
             { label: "Agua de la calle", type: "select", options: ["Si", "No"] },
             { label: "Horno Rational a gas", type: "select", options: ["Encendido", "Apagado"] }
         ]
@@ -816,23 +816,23 @@ const RUTINA_SEMANARIO_RUICES = [
         campos: [
             { label: "Llave de gas", type: "select", options: ["Abierta", "Cerrada"] },
             { label: "Armario refrigerado", type: "number" },
-            { label: "Mesón refrigerado E", type: "number" },
-            { label: "Mesón refrigerado F", type: "number" },
+            { label: "MesÃ³n refrigerado E", type: "number" },
+            { label: "MesÃ³n refrigerado F", type: "number" },
             { label: "Horno Rational", type: "select", options: ["Encendido", "Apagado"] },
             { label: "Abatidor", type: "select", options: ["Encendido", "Apagado"] },
             { label: "Aires de sala", type: "select", options: ["Encendido", "Apagado"] },
             { label: "Aire party / pantry", type: "select", options: ["Encendido", "Apagado"] },
-            { label: "Aire de panadería", type: "select", options: ["Encendido", "Apagado"] },
-            { label: "Inyección", type: "select", options: ["Encendido", "Apagado"] },
+            { label: "Aire de panaderÃ­a", type: "select", options: ["Encendido", "Apagado"] },
+            { label: "InyecciÃ³n", type: "select", options: ["Encendido", "Apagado"] },
             { label: "Ascensor", type: "select", options: ["Sin novedad", "Con novedad", "Fuera de servicio"] }
         ]
     },
     {
         titulo: "Estacionamiento",
         campos: [
-            { label: "Santa María", type: "select", options: ["Abierta", "Cerrada"] },
+            { label: "Santa MarÃ­a", type: "select", options: ["Abierta", "Cerrada"] },
             { label: "Reflectores", type: "select", options: ["Encendido", "Apagado"] },
-            { label: "Cerco eléctrico", type: "select", options: ["Encendido", "Apagado"] }
+            { label: "Cerco elÃ©ctrico", type: "select", options: ["Encendido", "Apagado"] }
         ]
     },
     {
@@ -984,7 +984,7 @@ const EQUIPO_RUTINA = {
     "NEVERA EXHIBIDORA": "Rutina Cava Cuarto/Nevera",
     "PARRILLERAS": "Rutina Cocina",
     "PECERAS GRANDES": "Rutina Peceras",
-    "PECERAS PEQUEÑAS": "Rutina Peceras",
+    "PECERAS PEQUEÃ‘AS": "Rutina Peceras",
     "PELA PAPAS 220 V": "Rutina Cocina",
     "PLANCHA A GAS": "Rutina Reberberos",
     "PLANCHAS A GAS": "Rutina Reberberos",
@@ -1012,4 +1012,4 @@ const EQUIPO_RUTINA = {
     "TOPE FRANCES A GAS 2": "Rutina Cocinas",
 };
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6C7EQkwVTA8NlsO1sbw6DSiA6rfCjhRAmZvfu-X2GM6y6AwIr33FzN-Mde3oAzEibKw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyovWvhKTDQlIn7rtJiiVCbJddZmHyFDYebNOPqvb4fujjFVSNGG0R764jlIM7jS5V51g/exec";

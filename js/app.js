@@ -1021,6 +1021,9 @@ function loginTecnico() {
                     if (infoPin) infoPin.style.display = "none";
                     errorEl.textContent = resultado.mensaje || "PIN incorrecto.";
                     errorEl.style.display = "block";
+                    // El PIN fallido cuenta como intento, asi que se avisa
+                    // igual que cuando falla la cedula.
+                    mostrarIntentosRestantes(resultado.restantes);
                     return;
                 }
                 if (resultado && resultado.status === "ok") {
@@ -1040,6 +1043,7 @@ function loginTecnico() {
                                 mostrarCampoPin();
                                 errorEl.textContent = res2.mensaje || "PIN incorrecto.";
                                 errorEl.style.display = "block";
+                                mostrarIntentosRestantes(res2.restantes);
                             } else if (res2 && res2.status === "ok") {
                                 pinEnMemoria = pin;
                                 iniciarPanel(res2);

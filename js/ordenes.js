@@ -297,7 +297,10 @@ function formOrdenHTML(paraTecnico) {
     var html = '<form id="ordenForm" onsubmit="guardarOrden(event)" novalidate>' +
         '<div class="form-group"><label for="oSedes">Sede</label><select id="oSedes" onchange="onOrdSedeChange()"><option value="" disabled selected>Seleccionar sede...</option></select></div>' +
         '<div class="form-group" id="oZonaGroup" style="display:none;"><label for="oZona">Zona</label><select id="oZona" onchange="onOrdZonaChange()"><option value="" disabled selected>Seleccionar zona...</option></select></div>' +
-        '<div class="form-group"><label for="oEquipo">Equipo</label><select id="oEquipo"><option value="" disabled selected>Seleccionar equipo...</option></select></div>' +
+        '<div class="form-group"><label for="oEquipo">Equipo</label><select id="oEquipo" onchange="onOrdEquipoChange()"><option value="" disabled selected>Seleccionar equipo...</option></select></div>' +
+        '<div class="form-group" id="oEquipoOtroGroup" style="display:none;"><label for="oEquipoOtro">Nombre del equipo</label>' +
+        '<input type="text" id="oEquipoOtro" maxlength="80" placeholder="Escribe el nombre del equipo" autocomplete="off">' +
+        '<div class="hint">Se usara solo en esta orden. No se agrega a la lista de equipos.</div></div>' +
         '<div class="form-group"><label for="oEspecialidad">Especialidad</label><select id="oEspecialidad">' + ESPECIALIDADES.map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join("") + '</select></div>' +
         '<div class="form-group"><label for="oDescripcion">Descripcion</label><textarea id="oDescripcion" rows="3" placeholder="' + (paraTecnico ? "Describe el trabajo que realizaste..." : "Describe el trabajo a realizar...") + '"></textarea></div>';
     if (paraTecnico) {
@@ -398,6 +401,19 @@ function populateOEquipo(sede, zona) {
     otro.value = "OTRO";
     otro.textContent = "OTRO";
     sel.appendChild(otro);
+    // Al cambiar de sede o zona se rehace la lista, asi que el campo se oculta.
+    onOrdEquipoChange();
+}
+
+// Muestra el campo para escribir el nombre cuando se elige OTRO.
+function onOrdEquipoChange() {
+    var sel = document.getElementById("oEquipo");
+    var grupo = document.getElementById("oEquipoOtroGroup");
+    var input = document.getElementById("oEquipoOtro");
+    var esOtro = !!(sel && sel.value === "OTRO");
+    if (grupo) grupo.style.display = esOtro ? "" : "none";
+    if (input && !esOtro) input.value = "";
+    return esOtro;
 }
 
 function guardarOrden(e) {
@@ -407,6 +423,11 @@ function guardarOrden(e) {
     var sede = document.getElementById("oSedes").value;
     var zona = document.getElementById("oZona").value || "";
     var equipo = document.getElementById("oEquipo").value;
+    var equipoOtro = document.getElementById("oEquipoOtro");
+    if (equipo === "OTRO") {
+        equipo = equipoOtro ? equipoOtro.value.trim() : "";
+        if (!equipo) { alert("Escribe el nombre del equipo."); if (equipoOtro) equipoOtro.focus(); return; }
+    }
     var especialidad = document.getElementById("oEspecialidad").value;
     var descripcion = document.getElementById("oDescripcion").value.trim();
     var tecnico = paraTecnico ? (tecnicoNombre || (usuarioActual ? usuarioActual.nombre : "")) : document.getElementById("oTecnico").value;

@@ -3126,7 +3126,7 @@ function renderAverias() {
     if (esRolAdmin(rol)) {
         cards = [
             ["crear", "Crear averia", "📋", "Reporta o registra una averia"],
-            ["asignar", "Asignar averias", "🛠️", "Asigna tecnicos a las averias pendientes"],
+            ["asignar", "Administrar averias", "🛠️", "Asigna, edita y borra averias"],
             ["estado", "Estado", "📊", "Averias por categoria, pendientes y tiempos de respuesta"]
         ];
     } else {
@@ -3289,20 +3289,25 @@ function pintarEstadoAverias(data) {
     });
 }
 
-var aAsigDatos = { averias: [], tecnicos: [] };
+var aAsigDatos = { averias: [], tecnicos: [], todas: [] };
+var aAsigVerTodas = false;
 
 function renderAsignarAverias() {
     var cont = document.getElementById("aAsigContent");
     if (!cont) return;
-    cont.innerHTML = '<div class="module-title" style="font-size:1rem;">Asignar tecnicos a las averias</div>' +
+    cont.innerHTML = '<div class="module-title" style="font-size:1rem;">Averias: asignar, editar y borrar</div>' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:.85rem;margin-bottom:8px;">' +
+        '<input type="checkbox" id="aAsigTodas"' + (aAsigVerTodas ? " checked" : "") + ' onchange="aAsigVerTodas=this.checked;renderAsignarAverias()">' +
+        'Ver tambien las ya resueltas</label>' +
         '<input type="text" id="aAsigBuscar" placeholder="Buscar por numero, equipo, sede o tecnico..." oninput="filtrarAsignarAverias()" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
         '<div id="aAsigLista" class="lista-vacia">Cargando averias...</div>';
     fetchJSON("averias", {}, { cacheMs: 8000 })
         .then(function (res) {
-            var arr = (Array.isArray(res) ? res : (res && res.averias) || []).filter(function (a) { return !a.resuelto; });
+            var todas = (Array.isArray(res) ? res : (res && res.averias) || []);
+            var arr = aAsigVerTodas ? todas : todas.filter(function (a) { return !a.resuelto; });
             return fetchJSON("personal", {}, { cacheMs: 120000 }).then(function (per) {
                 var techs = (per || []).filter(function (p) { return String(p.tipo).toUpperCase() === "TECNICO"; }).map(function (p) { return p.nombre; });
-                aAsigDatos = { averias: arr, tecnicos: techs };
+                aAsigDatos = { averias: arr, tecnicos: techs, todas: todas };
                 pintarAsignarAverias(cont, arr, techs);
             });
         })
@@ -3347,25 +3352,97 @@ function pintarAsignarAverias(cont, arr, techs) {
         });
         var card = document.createElement("div");
         card.className = "card";
-        card.style.cssText = "margin-bottom:10px;padding:12px;border-left:4px solid #1976d2;";
+        card.style.cssText = "margin-bottom:10px;padding:12px;border-left:4px solid " + (a.resuelto ? "#2e7d32" : "#1976d2") + ";";
         card.innerHTML =
-            '<div style="font-weight:700;color:#1976d2;">Averia ' + escaparHTML(a.numero) + (a.estado && a.estado !== "Pendiente" ? ' | ' + escaparHTML(a.estado) : '') + '</div>' +
+            '<div style="font-weight:700;color:#1976d2;">Averia ' + escaparHTML(a.numero) + (a.estado && a.estado !== "Pendiente" ? ' | ' + escaparHTML(a.estado) : '') + (a.resuelto ? ' <span style="font-size:.7rem;color:#2e7d32;">(resuelta)</span>' : '') + '</div>' +
             '<div style="font-size:.85rem;color:#333;">Equipo: <b>' + escaparHTML(a.equipo) + '</b> | ' + escaparHTML(a.sede || "") + (a.zona ? ' / ' + escaparHTML(a.zona) : '') + '</div>' +
             '<div style="font-size:.8rem;color:#555;">Reportada: ' + escaparHTML(formatearFechaHora(a.fecha, a.hora)) + ' | Por: ' + escaparHTML(a.empleado || "") + (a.asignado ? ' | Asignado a: <b>' + escaparHTML(a.asignado) + '</b>' : '') + '</div>' +
             (a.descripcion ? '<div style="font-size:.8rem;color:#777;margin-bottom:8px;">' + escaparHTML(a.descripcion) + '</div>' : '') +
             htmlFotosAveria(a) +
             '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>';
         var controls = card.querySelector("div:last-child");
-        controls.appendChild(sel);
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn-primary";
-        btn.style.cssText = "padding:6px 12px;font-size:.8rem;";
-        btn.textContent = a.asignado ? "Cambiar" : "Asignar";
-        btn.onclick = function () { asignarAveriaModulo(a.numero); };
-        controls.appendChild(btn);
+        if (!a.resuelto) {
+            controls.appendChild(sel);
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn-primary";
+            btn.style.cssText = "padding:6px 12px;font-size:.8rem;";
+            btn.textContent = a.asignado ? "Cambiar" : "Asignar";
+            btn.onclick = function () { asignarAveriaModulo(a.numero); };
+            controls.appendChild(btn);
+        }
+        var btnEditar = document.createElement("button");
+        btnEditar.type = "button";
+        btnEditar.className = "btn-primary";
+        btnEditar.style.cssText = "padding:6px 12px;font-size:.8rem;background:#f57c00;";
+        btnEditar.textContent = "Editar";
+        btnEditar.onclick = function () { editarAveriaModulo(a.numero); };
+        controls.appendChild(btnEditar);
+        var btnBorrar = document.createElement("button");
+        btnBorrar.type = "button";
+        btnBorrar.style.cssText = "padding:6px 12px;font-size:.8rem;background:#d32f2f;color:#fff;border:none;border-radius:8px;cursor:pointer;";
+        btnBorrar.textContent = "Borrar";
+        btnBorrar.onclick = function () { borrarAveriaModulo(a.numero); };
+        controls.appendChild(btnBorrar);
         el.appendChild(card);
     });
+}
+
+var ESTADOS_AVERIA_ = ["Pendiente", "En proceso", "Realizada", "No realizada", "Falsa averia"];
+
+function editarAveriaModulo(numero) {
+    var a = (aAsigDatos.todas || aAsigDatos.averias || []).filter(function (x) { return x.numero === numero; })[0];
+    if (!a) { alert("No se encontro la averia " + numero + "."); return; }
+    var op = ESTADOS_AVERIA_.map(function (e) {
+        return '<option value="' + escaparHTML(e) + '"' + (String(a.estado || "") === e ? " selected" : "") + '>' + escaparHTML(e) + '</option>';
+    }).join("");
+    var html =
+        '<div class="module-title" style="font-size:1rem;">Editar averia ' + escaparHTML(numero) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">' +
+        '<input type="text" id="edSede" value="' + escaparHTML(a.sede || "") + '" placeholder="Sede" style="padding:9px;border:1px solid #ccc;border-radius:8px;">' +
+        '<input type="text" id="edZona" value="' + escaparHTML(a.zona || "") + '" placeholder="Zona" style="padding:9px;border:1px solid #ccc;border-radius:8px;">' +
+        '<input type="text" id="edEquipo" value="' + escaparHTML(a.equipo || "") + '" placeholder="Equipo" style="padding:9px;border:1px solid #ccc;border-radius:8px;">' +
+        '<select id="edEstado" style="padding:9px;border:1px solid #ccc;border-radius:8px;">' + op + '</select>' +
+        '<input type="text" id="edAsignado" value="' + escaparHTML(a.asignado || "") + '" placeholder="Tecnico asignado" style="padding:9px;border:1px solid #ccc;border-radius:8px;">' +
+        '<textarea id="edDescripcion" rows="3" placeholder="Descripcion" style="padding:9px;border:1px solid #ccc;border-radius:8px;">' + escaparHTML(a.descripcion || "") + '</textarea>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button type="button" class="btn-primary" style="flex:1;" onclick="guardarEdicionAveria(\'' + escaparHTML(numero) + '\')">Guardar</button>' +
+        '<button type="button" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;" onclick="renderAsignarAverias()">Cancelar</button>' +
+        '</div></div>';
+    document.getElementById("aAsigContent").innerHTML = html;
+    window.scrollTo(0, 0);
+}
+
+function guardarEdicionAveria(numero) {
+    postJSON({
+        tipo: "editar_averia",
+        numero: numero,
+        empleado: usuarioActual ? usuarioActual.nombre : "",
+        sede: document.getElementById("edSede").value.trim(),
+        zona: document.getElementById("edZona").value.trim(),
+        equipo: document.getElementById("edEquipo").value.trim(),
+        estado: document.getElementById("edEstado").value,
+        asignado: document.getElementById("edAsignado").value.trim(),
+        descripcion: document.getElementById("edDescripcion").value.trim()
+    }).then(function (r) {
+        if (r && r.status === "error") { alert(r.message || "No se pudo editar."); return; }
+        borrarCacheV("averias");
+        alert("Averia " + numero + " actualizada.");
+        if (typeof notiRefrescar === "function") notiRefrescar(true);
+        renderAsignarAverias();
+    }).catch(function () { alert("Sin conexion. No se pudo editar la averia."); });
+}
+
+function borrarAveriaModulo(numero) {
+    if (!confirm("Borrar la averia " + numero + "?\n\nTambien se eliminaran sus fotos de Drive. Esto no se puede deshacer.")) return;
+    postJSON({ tipo: "borrar_averia", numero: numero, empleado: usuarioActual ? usuarioActual.nombre : "" })
+        .then(function (r) {
+            if (r && r.status === "error") { alert(r.message || "No se pudo borrar."); return; }
+            borrarCacheV("averias");
+            alert("Averia " + numero + " borrada.");
+            if (typeof notiRefrescar === "function") notiRefrescar(true);
+            renderAsignarAverias();
+        }).catch(function () { alert("Sin conexion. No se pudo borrar la averia."); });
 }
 
 function asignarAveriaModulo(numero) {

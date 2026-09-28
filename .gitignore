@@ -1,5 +1,9 @@
 # El backend (Apps Script) no va al repo: se publica a mano desde el editor.
 /code.gs
+/configAdmin.gs
+/pinDebug.gs
+/verificarVersion.gs
+/generarPines.gs
 
 # Los respaldos de la base de asistencia contienen la nomina completa.
 respaldos/

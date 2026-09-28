@@ -1,11 +1,79 @@
 // utils.js - Funciones utilitarias compartidas
 
 function postJSON(body) {
+    invalidarCacheV();
     return fetch(APPS_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         body: JSON.stringify(body)
     }).then(function () {}).catch(function () {});
+}
+
+function invalidarCacheV() {
+    try {
+        var keys = [];
+        for (var i = 0; i < sessionStorage.length; i++) {
+            var k = sessionStorage.key(i);
+            if (k && k.indexOf("c:") === 0) keys.push(k);
+        }
+        keys.forEach(function (k) { sessionStorage.removeItem(k); });
+    } catch (e) {}
+}
+
+function leerCacheV(clave) {
+    try {
+        var raw = sessionStorage.getItem("c:" + clave);
+        if (!raw) return null;
+        var obj = JSON.parse(raw);
+        if (obj && obj.ts && Date.now() - obj.ts < obj.ttl) return obj.v;
+        sessionStorage.removeItem("c:" + clave);
+    } catch (e) {}
+    return null;
+}
+
+function guardarCacheV(clave, v, ttlMs) {
+    try {
+        sessionStorage.setItem("c:" + clave, JSON.stringify({ ts: Date.now(), ttl: ttlMs, v: v }));
+    } catch (e) {}
+}
+
+function borrarCacheV(prefijo) {
+    try {
+        var keys = [];
+        for (var i = 0; i < sessionStorage.length; i++) {
+            var k = sessionStorage.key(i);
+            if (k && k.indexOf("c:" + prefijo) === 0) keys.push(k);
+        }
+        keys.forEach(function (k) { sessionStorage.removeItem(k); });
+    } catch (e) {}
+}
+
+function fechaHoraAhora() {
+    var d = new Date();
+    return {
+        fecha: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"),
+        hora: d.toTimeString().slice(0, 5)
+    };
+}
+
+function formatearHora12(hora) {
+    var h = String(hora == null ? "" : hora).trim();
+    if (!h) return "";
+    var partes = h.split(":");
+    var hh = parseInt(partes[0], 10);
+    var mm = parseInt(partes[1], 10);
+    if (isNaN(hh) || isNaN(mm)) return h;
+    var sufijo = hh >= 12 ? "p. m." : "a. m.";
+    var h12 = hh % 12;
+    if (h12 === 0) h12 = 12;
+    return h12 + ":" + String(mm).padStart(2, "0") + " " + sufijo;
+}
+
+function formatearFechaHora(fecha, hora) {
+    var f = String(fecha == null ? "" : fecha).trim();
+    var h = formatearHora12(hora);
+    if (f && h) return f + " · " + h;
+    return f || h;
 }
 
 function limpiarHora(prefix) {

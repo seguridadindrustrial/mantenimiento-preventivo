@@ -1,7 +1,12 @@
 // cistern.js - Interfaz de pago de cisterna
 
 function mostrarInterfazPagoCisterna() {
-    mostrarSoloSeccion("cisternaPagoSection");
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("checkinForm").style.display = "none";
+    document.getElementById("averiaForm").style.display = "none";
+    document.getElementById("resolucionForm").style.display = "none";
+    document.getElementById("asignarSection").style.display = "none";
+    document.getElementById("cisternaPagoSection").style.display = "block";
 
     document.getElementById("cisternaPagoInfo").textContent = "Cargando deudas pendientes...";
     document.getElementById("cisternaTablaDeudas").innerHTML = "";
@@ -11,12 +16,12 @@ function mostrarInterfazPagoCisterna() {
     fetch(APPS_SCRIPT_URL + "?accion=deudas_cisterna")
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            cisternaDeudas = Array.isArray(data) ? data : [];
-            cisternaTotal = 0;
+            cisternaDeudas = (data && data.deudas) || [];
             var pendientes = [];
+            cisternaTotal = 0;
             for (var i = 0; i < cisternaDeudas.length; i++) {
                 if (cisternaDeudas[i].estado !== "Pagado") {
-                    cisternaTotal += cisternaDeudas[i].monto;
+                    cisternaTotal += parseInt(cisternaDeudas[i].restante || cisternaDeudas[i].monto || 0, 10);
                     pendientes.push(cisternaDeudas[i]);
                 }
             }
@@ -25,7 +30,7 @@ function mostrarInterfazPagoCisterna() {
             document.getElementById("cisternaTotalMonto").textContent = "$" + cisternaTotal;
 
             var html = "<table class='cisterna-deuda-tabla'>" +
-                "<tr><th>Fecha</th><th>Hora</th><th>Sede</th><th>Tecnico</th><th>Monto</th><th>Estado</th></tr>";
+                "<tr><th>Fecha</th><th>Hora</th><th>Sede</th><th>Tecnico</th><th>Monto</th><th>Restante</th><th>Estado</th></tr>";
             for (var j = 0; j < cisternaDeudas.length; j++) {
                 var d = cisternaDeudas[j];
                 var cls = d.estado === "Pagado" ? "fila-pagada" : "fila-pendiente";
@@ -35,6 +40,7 @@ function mostrarInterfazPagoCisterna() {
                     "<td>" + d.sede + "</td>" +
                     "<td>" + d.tecnico + "</td>" +
                     "<td>$" + d.monto + "</td>" +
+                    "<td>$" + (d.estado === "Pagado" ? "0" : (d.restante || d.monto || "")) + "</td>" +
                     "<td>" + d.estado + "</td>" +
                     "</tr>";
             }
@@ -104,7 +110,7 @@ function confirmarPagoCisterna() {
         mode: "no-cors",
         body: JSON.stringify({
             tipo: "pagar_cisterna",
-            tipo: tipo,
+            tipoPago: tipo,
             monto: monto
         })
     }).then(function () {

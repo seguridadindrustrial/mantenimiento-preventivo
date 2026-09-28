@@ -1,9 +1,41 @@
 // checkin.js - Interfaz de rutinas / check-in (paso 2 y envio del formulario)
 
+var retrasoActivo = null;
+
+function hoyYMD() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function verificarRetrasoPreventivo(equipo) {
+    retrasoActivo = null;
+    var grupo = document.getElementById("retrasoGroup");
+    if (grupo) grupo.style.display = "none";
+    if (!equipo) return;
+    fetch(APPS_SCRIPT_URL + "?accion=preventivos")
+        .then(function (r) { return r.json(); })
+        .then(function (lista) {
+            var hoy = hoyYMD();
+            var pend = (lista || []).find(function (p) {
+                return p.equipo === equipo &&
+                    p.estado !== "E" &&
+                    String(p.retrasado || "") !== "Si" &&
+                    p.fechaLimite && String(p.fechaLimite) < hoy && String(p.fechaLimite) >= String(p.fecha || "");
+            });
+            if (pend) {
+                retrasoActivo = { equipo: equipo, fechaProgramada: pend.fecha };
+                var g = document.getElementById("retrasoGroup");
+                if (g) g.style.display = "block";
+            }
+        })
+        .catch(function () {});
+}
+
 function irAlPaso2() {
     const sedes = document.getElementById("sedes").value;
-    const fecha = document.getElementById("fecha").value;
-    const hora = obtenerHora();
+    const fh = fechaHoraAhora();
+    const fecha = fh.fecha;
+    const hora = fh.hora;
     const zona = document.getElementById("zona").value;
     const esExterior = !esTaller && zona === "EXTERIOR";
     const equipoSelect = document.getElementById("equipo").value;
@@ -17,7 +49,7 @@ function irAlPaso2() {
         : equipoSelect;
     const mantenimiento = esTaller ? "" : document.getElementById("mantenimiento").value;
 
-    if (!sedes || !fecha || !hora) {
+    if (!sedes) {
         alert("Por favor completa todos los campos antes de continuar.");
         return;
     }
@@ -26,7 +58,7 @@ function irAlPaso2() {
         return;
     }
     const zonas = SEDE_ZONAS[sedes] || [];
-    if (zonas.length > 0 && !zona) {
+    if (!esTaller && zonas.length > 0 && !zona) {
         alert("Selecciona una zona.");
         return;
     }
@@ -53,6 +85,13 @@ function irAlPaso2() {
                 alert("Agrega al menos un repuesto.");
                 return;
             }
+            for (var irOtro = 0; irOtro < otrosRepuestos.length; irOtro++) {
+                var cantOtroR = parseInt(otrosRepuestos[irOtro].cantidad, 10);
+                if (isNaN(cantOtroR) || cantOtroR < 1) {
+                    alert("Indica la cantidad de cada repuesto.");
+                    return;
+                }
+            }
         }
         var otroAyudaToggle = document.querySelector("#otroAyudaSi.active-si, #otroAyudaNo.active-si, #otroAyudaSi.active-no, #otroAyudaNo.active-no");
         if (!otroAyudaToggle) {
@@ -78,7 +117,7 @@ function irAlPaso2() {
             alert("Este registro ya fue enviado anteriormente.");
             return;
         }
-        if (!confirm("Confirmar envio?\n\nFecha: " + fecha + "\nHora: " + hora + "\nSede: " + sedes + "\nEquipo: " + equipo + "\nMantenimiento: OTRO")) {
+        if (!confirm("Confirmar envio?\n\nSede: " + sedes + "\nEquipo: " + equipo + "\nMantenimiento: OTRO\n\nLa fecha y la hora las registra el sistema.")) {
             return;
         }
         var registroOtro = {
@@ -103,9 +142,11 @@ function irAlPaso2() {
             alert("Registro enviado correctamente.");
             mostrarResumenMensaje(generarResumenMantenimiento(registroOtro));
             clearForm();
+            if (typeof irAlInicio === "function") irAlInicio();
         }).catch(function () {
             alert("Error de conexion. El registro se enviara cuando haya internet.");
             clearForm();
+            if (typeof irAlInicio === "function") irAlInicio();
         });
         return;
     }
@@ -113,6 +154,10 @@ function irAlPaso2() {
     if (!esDinamica && (!rutinaActual || (Array.isArray(rutinaActual) && rutinaActual.length === 0))) {
         alert("El equipo seleccionado no tiene rutina definida.");
         return;
+    }
+
+    if (!esTaller && mantenimiento === "PREVENTIVO") {
+        verificarRetrasoPreventivo(equipo);
     }
 
     document.getElementById("paso1").style.display = "none";
@@ -233,7 +278,6 @@ function setPaso2Buttons() {
 
 function renderRutinaDinamica(container, equipo) {
     esDinamica = true;
-    equipo = limpiarEquipo(equipo);
     equipoDinamicoActual = equipo || "";
 
     const guardada = getRutinaDinamicaGuardada(equipoDinamicoActual);
@@ -466,8 +510,9 @@ function enviarFormulario(e) {
     e.preventDefault();
 
     const sedes = document.getElementById("sedes").value;
-    const fecha = document.getElementById("fecha").value;
-    const hora = obtenerHora();
+    const fh = fechaHoraAhora();
+    const fecha = fh.fecha;
+    const hora = fh.hora;
     const zona = document.getElementById("zona").value;
     const esExterior = !esTaller && zona === "EXTERIOR";
     const equipoSelect = document.getElementById("equipo").value;
@@ -482,7 +527,7 @@ function enviarFormulario(e) {
     const mantenimiento = esTaller ? "" : document.getElementById("mantenimiento").value;
     const descripcion = document.getElementById(esTaller ? "descripcionTaller" : "descripcion").value.trim();
 
-    if (!sedes || !fecha || !hora) {
+    if (!sedes) {
         alert("Por favor completa todos los campos.");
         return;
     }
@@ -563,6 +608,13 @@ function enviarFormulario(e) {
             alert("Agrega al menos un repuesto.");
             return;
         }
+        for (let irp = 0; irp < repuestos.length; irp++) {
+            const cantRp = parseInt(repuestos[irp].cantidad, 10);
+            if (isNaN(cantRp) || cantRp < 1) {
+                alert("Indica la cantidad de cada repuesto.");
+                return;
+            }
+        }
     }
 
     const ayudaToggle = document.querySelector("#ayudaSi.active-si, #ayudaNo.active-si, #ayudaSi.active-no, #ayudaNo.active-no");
@@ -596,7 +648,11 @@ function enviarFormulario(e) {
         return;
     }
 
-    if (!confirm("Confirmar envio?\n\nFecha: " + fecha + "\nHora: " + hora + "\nSede: " + sedes + "\nEquipo: " + equipo + "\nTecnico: " + tecnicoNombre)) {
+    if (prevAsignadoActivo) {
+        if (!confirm("Confirmar envio?\n\nEquipo: " + equipo + "\nTecnico: " + tecnicoNombre + "\n\nLa fecha y la hora las registra el sistema.")) {
+            return;
+        }
+    } else if (!confirm("Confirmar envio?\n\nSede: " + sedes + "\nEquipo: " + equipo + "\nTecnico: " + tecnicoNombre + "\n\nLa fecha y la hora las registra el sistema.")) {
         return;
     }
 
@@ -629,6 +685,19 @@ function enviarFormulario(e) {
         ayudaTecnicos: ayudaTecnicos
     };
 
+    if (retrasoActivo) {
+        var motivoRetraso = document.getElementById("retrasoMotivo").value.trim();
+        if (!motivoRetraso) {
+            alert("Explica por que no realizaste este preventivo a tiempo.");
+            return;
+        }
+        registro.retraso = {
+            equipo: retrasoActivo.equipo,
+            fechaProgramada: retrasoActivo.fechaProgramada,
+            motivo: motivoRetraso
+        };
+    }
+
     marcarEnviado(idUnico);
     saveToLocalStorage(registro);
 
@@ -638,13 +707,26 @@ function enviarFormulario(e) {
         body: JSON.stringify(registro)
     })
     .then(() => {
+        if (registro.retraso) {
+            postJSON({
+                tipo: "registrar_retraso_preventivo",
+                equipo: registro.retraso.equipo,
+                fechaProgramada: registro.retraso.fechaProgramada,
+                motivo: registro.retraso.motivo,
+                fecha: fecha,
+                hora: hora,
+                tecnico: tecnicoNombre
+            }).catch(function () {});
+        }
         alert("Enviado correctamente a Google Sheets.");
         mostrarResumenMensaje(generarResumenMantenimiento(registro));
         clearForm();
+        if (typeof irAlInicio === "function") irAlInicio();
     })
     .catch(() => {
         alert("Error al enviar. El registro se guardo localmente.");
         clearForm();
+        if (typeof irAlInicio === "function") irAlInicio();
     });
 }
 
@@ -661,13 +743,8 @@ function generarResumenMantenimiento(registro) {
     lineas.push("Actividades:");
     var keys = registro.checkinKeys || [];
     var values = registro.checkinValues || [];
-    var esCorrectivo = registro.mantenimiento === "CORRECTIVO";
     for (var i = 0; i < keys.length && i < values.length; i++) {
-        if (esCorrectivo) {
-            if (values[i] === "Si") {
-                lineas.push("- " + keys[i]);
-            }
-        } else if (values[i] === "Si" || values[i] !== "") {
+        if (values[i] === "Si" || values[i] !== "") {
             lineas.push("- " + keys[i] + ": " + (values[i] || "-"));
         }
     }

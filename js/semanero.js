@@ -197,11 +197,8 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
         if (tanquesWrapper && !tallerSubCompleto(tanquesWrapper)) {
             alert("Las sub-preguntas de Tanques estan incompletas. Complete: Llenos, Vacios, Entrada de Agua de la Calle, Solicitar cisterna.");
         } else if (confirm("Confirmar envio de Tanques?\n\nFecha: " + fecha + "\nHora: " + hora + "\nSede: " + sedes)) {
-            var sub = tallerValues["Tanques"].sub || {};
-            var solicitaCisterna = sub["Solicitar cisterna"] === "Si";
-            var entradaDeAgua = sub["Entrada de Agua de la Calle"] || "";
-            var llenos = (sub["Llenos"] !== undefined && sub["Llenos"] !== null) ? sub["Llenos"] : "";
-            var vacios = (sub["Vacios"] !== undefined && sub["Vacios"] !== null) ? sub["Vacios"] : "";
+            var solicitaCisterna = tallerValues["Tanques"].sub && tallerValues["Tanques"].sub["Solicitar cisterna"] === "Si";
+            var estadoTanque = (tallerValues["Tanques"].sub && tallerValues["Tanques"].sub["Estado"]) || "";
 
             if (solicitaCisterna) {
                 postJSON({ tipo: "solicitar_cisterna", sede: sedes, fecha: fecha, hora: hora, tecnico: tecnicoNombre }).catch(function () {});
@@ -221,10 +218,6 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
                     equipo: sedes === "RUICES" ? "Semanero los Ruices" : "SEMANERO",
                     rutina: "Actividades de Semaneros - Tanques",
                     task: "Tanques",
-                    llenos: llenos,
-                    vacios: vacios,
-                    entradaDeAgua: entradaDeAgua,
-                    solicitarCisterna: solicitaCisterna,
                     descripcion: descripcion
                 });
                 postJSON({
@@ -232,13 +225,10 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
                     sedes: sedes,
                     fecha: fecha,
                     hora: hora,
-                    turno: turno,
                     zona: zona,
                     tecnico: tecnicoNombre,
-                    llenos: llenos,
-                    vacios: vacios,
-                    entradaDeAgua: entradaDeAgua,
                     solicitarCisterna: solicitaCisterna,
+                    estado: estadoTanque,
                     descripcion: descripcion
                 }).catch(function () {});
             }
@@ -289,6 +279,7 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
 
     alert("Tareas de Taller enviadas.");
     clearForm();
+    if (typeof irAlInicio === "function") irAlInicio();
 }
 
 function renderSemanarioRuices(container) {
@@ -555,10 +546,7 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                 }
                 const idTanques = generarIdUnico(fecha, hora, sedes, "Tanques", tecnicoNombre);
                 if (!yaEnviado(idTanques)) {
-                    const subT = (tarea.sub || {});
-                    const entradaDeAgua = subT["Entrada de Agua de la Calle"] || "";
-                    const llenos = (subT["Llenos"] !== undefined && subT["Llenos"] !== null) ? subT["Llenos"] : "";
-                    const vacios = (subT["Vacios"] !== undefined && subT["Vacios"] !== null) ? subT["Vacios"] : "";
+                    const estadoTanque = (tarea.sub && tarea.sub["Estado"]) || "";
                     marcarEnviado(idTanques);
                     saveToLocalStorage({
                         id: idTanques,
@@ -571,10 +559,6 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                         equipo: sedes === "RUICES" ? "Semanero los Ruices" : "SEMANERO",
                         rutina: "Actividades de Semaneros - Tanques",
                         task: "Tanques",
-                        llenos: llenos,
-                        vacios: vacios,
-                        entradaDeAgua: entradaDeAgua,
-                        solicitarCisterna: solicitaCisterna,
                         descripcion: descripcion
                     });
                     postJSON({
@@ -582,13 +566,10 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                         sedes: sedes,
                         fecha: fecha,
                         hora: hora,
-                        turno: turno,
                         zona: zona,
                         tecnico: tecnicoNombre,
-                        llenos: llenos,
-                        vacios: vacios,
-                        entradaDeAgua: entradaDeAgua,
                         solicitarCisterna: solicitaCisterna,
+                        estado: estadoTanque,
                         descripcion: descripcion
                     }).catch(function () {});
                 }
@@ -634,10 +615,12 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
     .then(() => {
         alert("Semanero de RUICES enviado correctamente.");
         clearForm();
+        if (typeof irAlInicio === "function") irAlInicio();
     })
     .catch(() => {
         alert("Error al enviar. El registro se guardo localmente.");
         clearForm();
+        if (typeof irAlInicio === "function") irAlInicio();
     });
 }
 
@@ -648,9 +631,30 @@ function clearForm() {
     document.getElementById("descripcion").value = "";
     document.getElementById("descripcionTaller").value = "";
     document.getElementById("descripcionTallerGroup").style.display = "none";
+    retrasoActivo = null;
+    prevAsignadoActivo = false;
+    prevAsignadoInfo = null;
+    var selSede = document.getElementById("sedes");
+    if (selSede) selSede.removeAttribute("disabled");
+    var selZona = document.getElementById("zona");
+    if (selZona) selZona.removeAttribute("disabled");
+    var dispEq = document.getElementById("equipoDisplay");
+    if (dispEq) dispEq.style.pointerEvents = "";
+    var pickerPrev = document.getElementById("prevAsignadoEquipos");
+    if (pickerPrev) pickerPrev.style.display = "none";
+    var retrasoGroup = document.getElementById("retrasoGroup");
+    if (retrasoGroup) {
+        retrasoGroup.style.display = "none";
+        var retM = document.getElementById("retrasoMotivo");
+        if (retM) retM.value = "";
+    }
     document.getElementById("checkinsContainer").innerHTML = "";
     document.getElementById("paso2").style.display = "none";
     document.getElementById("paso1").style.display = "block";
+    var rfRest = document.getElementById("rowFechaHora");
+    if (rfRest) rfRest.style.display = "";
+    var btnAtrasRest = document.getElementById("btnAtras");
+    if (btnAtrasRest) btnAtrasRest.style.display = "";
     document.getElementById("zonaGroup").style.display = "none";
     document.getElementById("zona").innerHTML = '<option value="" disabled selected>Seleccionar zona...</option>';
     document.getElementById("equipoGroup").style.display = "block";
@@ -658,7 +662,7 @@ function clearForm() {
     document.getElementById("equipoExterior").value = "";
     document.getElementById("equipoOtroGroup").style.display = "none";
     document.getElementById("equipoOtro").value = "";
-    document.getElementById("mantenimientoGroup").style.display = "block";
+    document.getElementById("mantenimientoGroup").style.display = "none";
     document.getElementById("formActions").style.display = "flex";
     document.getElementById("equipo").required = true;
     document.getElementById("mantenimiento").required = true;
@@ -667,6 +671,7 @@ function clearForm() {
     nombreRutinaActual = "";
     esTaller = false;
     esSemanarioRuices = false;
+    tipoMantenimientoActual = "";
     parteSemanarioActual = 0;
     esDinamica = false;
     rutinaYaRenderizada = false;

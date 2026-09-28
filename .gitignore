@@ -1,6 +1,5 @@
-js/calendario.js
+# El backend (Apps Script) no va al repo: se publica a mano desde el editor.
 /code.gs
 
-
-
-
+# Los respaldos de la base de asistencia contienen la nomina completa.
+respaldos/

@@ -1,5 +1,23 @@
 // averia.js - Formulario y envio de averias
 
+function toggleAveriaToggle(btn) {
+    const group = btn.parentElement;
+    group.querySelectorAll(".toggle-btn").forEach(b => {
+        b.classList.remove("active-si", "active-no");
+    });
+    btn.classList.add(btn.dataset.value === "Si" ? "active-si" : "active-no");
+
+    document.getElementById("aAveriaDetalle").style.display = btn.dataset.value === "Si" ? "block" : "none";
+    if (btn.dataset.value === "No") {
+        document.getElementById("aDescripcion").value = "";
+        document.getElementById("aImagenes").value = "";
+    document.getElementById("aImagenesPreview").innerHTML = "";
+    document.getElementById("aImagenes").value = "";
+    document.getElementById("aImagenesUpload").value = "";
+        averiaImagenes = [];
+    }
+}
+
 function renderImagenesPreview() {
     const preview = document.getElementById("aImagenesPreview");
     preview.innerHTML = "";
@@ -18,41 +36,75 @@ function enviarAveria(e) {
 
     const sedes = document.getElementById("aSedes").value;
     const zona = document.getElementById("aZona").value;
-    const ahora = new Date();
-    const fecha = ahora.getFullYear() + "-" + String(ahora.getMonth() + 1).padStart(2, "0") + "-" + String(ahora.getDate()).padStart(2, "0");
-    const hora = String(ahora.getHours()).padStart(2, "0") + ":" + String(ahora.getMinutes()).padStart(2, "0");
+    const fh = fechaHoraAhora();
+    const fecha = fh.fecha;
+    const hora = fh.hora;
+    const esEvento = sedes === "EVENTO";
+    const esExterior = !esEvento && zona === "EXTERIOR";
+    const equipoLibre = esEvento ? document.getElementById("aEquipoLibre").value.trim() : "";
+    const eventoNombre = esEvento ? document.getElementById("aEventoLibre").value.trim() : "";
+    const equipoExterior = esExterior ? document.getElementById("aEquipoExterior").value.trim() : "";
+    const equipoSelect = document.getElementById("aEquipo").value;
+    const esOtro = equipoSelect === "__OTRO__";
+    const equipoOtro = esOtro ? document.getElementById("aEquipoOtro").value.trim() : "";
+    const equipo = esEvento
+        ? (equipoLibre + (eventoNombre ? " / Evento: " + eventoNombre : ""))
+        : esExterior
+        ? equipoExterior
+        : esOtro
+        ? equipoOtro
+        : equipoSelect;
+    const averia = document.querySelector("#aAvSi.active-si, #aAvNo.active-si, #aAvSi.active-no, #aAvNo.active-no");
     const descripcion = document.getElementById("aDescripcion").value.trim();
 
-    const equipo = descripcion;
-
     if (!sedes) {
-        alert("Completa sede.");
+        alert("Completa la sede.");
         return;
     }
     const zonas = getAveriaZonas(sedes);
-    if (zonas.length > 0 && !zona) {
+    if (!esEvento && zonas.length > 0 && !zona) {
         alert("Selecciona una zona.");
+        return;
+    }
+    if (!equipo) {
+        alert(esEvento ? "Escribe el equipo del evento." : esExterior ? "Escribe el nombre del equipo." : esOtro ? "Escribe el nombre del equipo." : "Selecciona un equipo.");
+        return;
+    }
+    if (esEvento && !eventoNombre) {
+        alert("Escribe el nombre del evento.");
+        return;
+    }
+    if (!averia) {
+        alert("Indica si el equipo presenta una averia (Si/No).");
+        return;
+    }
+    if (averia.dataset.value === "No") {
+        alert("No hay averia que reportar.");
         return;
     }
     if (!descripcion) {
         alert("Escribe una descripcion de la averia.");
         return;
     }
-    if (descripcion.length < 10) {
-        alert("La descripcion debe tener minimo 10 caracteres.");
+    if (averiaImagenes.length === 0) {
+        alert("Debes adjuntar al menos 1 foto.");
         return;
     }
-    if (averiaImagenes.length === 0) {
-        alert("Debes tomar al menos 1 foto.");
-        return;
+
+    if (esOtro && equipo) {
+        postJSON({ tipo: "nuevo_equipo", equipo: equipo, sede: sedes, zona: zona }).catch(function() {});
     }
 
     const idUnico = generarIdUnico(fecha, hora, sedes, equipo, empleadoNombre);
     if (yaEnviado(idUnico)) {
         alert("Este registro ya fue enviado anteriormente.");
         clearAveriaForm();
-        mostrarSoloSeccion("loginSection");
-        document.getElementById("codigoTecnico").value = "";
+        if (typeof irAlInicio === "function" && usuarioActual) irAlInicio();
+        else {
+            document.getElementById("averiaForm").style.display = "none";
+            document.getElementById("loginSection").style.display = "block";
+            document.getElementById("codigoTecnico").value = "";
+        }
         return;
     }
 
@@ -69,6 +121,7 @@ function enviarAveria(e) {
         zona: zona,
         equipo: equipo,
         averia: "Si",
+        descripcion: descripcion,
         empleado: empleadoNombre,
         imagenes: averiaImagenes
     };
@@ -89,10 +142,16 @@ function enviarAveria(e) {
             return;
         }
         marcarEnviado(idUnico);
+        borrarCacheV("averias");
         alert("Averia reportada correctamente.");
         clearAveriaForm();
-        mostrarSoloSeccion("loginSection");
-        document.getElementById("codigoTecnico").value = "";
+        if (typeof notiRefrescar === "function") notiRefrescar(true);
+        if (typeof irAlInicio === "function" && usuarioActual) irAlInicio();
+        else {
+            document.getElementById("averiaForm").style.display = "none";
+            document.getElementById("loginSection").style.display = "block";
+            document.getElementById("codigoTecnico").value = "";
+        }
         averiaEnviando = false;
         btnEnviar.disabled = false;
     })
@@ -106,8 +165,26 @@ function enviarAveria(e) {
 function clearAveriaForm() {
     document.getElementById("averiaForm").reset();
     document.getElementById("aZonaGroup").style.display = "none";
+    document.getElementById("aEquipoGroup").style.display = "block";
+    document.getElementById("aEquipoLibreGroup").style.display = "none";
+    document.getElementById("aEquipoLibre").value = "";
+    document.getElementById("aEventoLibre").value = "";
+    document.getElementById("aEquipoExteriorGroup").style.display = "none";
+    document.getElementById("aEquipoExterior").value = "";
+    document.getElementById("aEquipoOtroGroup").style.display = "none";
+    document.getElementById("aEquipoOtro").value = "";
+    resetCombobox("aEquipo", "Seleccionar equipo...");
+    document.getElementById("aAveriaDetalle").style.display = "none";
     document.getElementById("aImagenesPreview").innerHTML = "";
+    document.querySelectorAll("#aAvSi, #aAvNo").forEach(b => {
+        b.classList.remove("active-si", "active-no");
+    });
     averiaImagenes = [];
     var label = document.getElementById("aFotosLabel");
-    label.textContent = "Fotos - Obligatoria (maximo 2)";
+    if (label) {
+        label.textContent = "Fotos (maximo 2) - Obligatoria";
+        label.style.color = "#d32f2f";
+        label.style.fontWeight = "700";
+    }
+    limpiarHora("a");
 }

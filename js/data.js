@@ -3,71 +3,10 @@
 
 let SEDES = [];
 let SEDES_CHECKIN = [];
+let SEDES_SEMANERO = [];
 let SEDE_ZONAS = {};
 
-// El listado de personal (nombre, cedula, whatsapp, correo, jefe) vive solo en
-// el servidor (Code.gs -> PERSONAL_) para no exponer datos personales ni
-// credenciales de acceso (cedula) a cualquiera que abra el sitio.
-// El login ahora se valida contra el backend (ver loginTecnico() en js/app.js).
 
-
-let EQUIPOS_BACKEND = [];
-
-function normalizarEquipo(nombre) {
-    return String(nombre || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toUpperCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-}
-
-function limpiarEquipo(nombre) {
-    return String(nombre || "").replace(/\s+/g, " ").trim().toUpperCase();
-}
-
-function cargarEquiposBackend() {
-    return fetch(APPS_SCRIPT_URL + "?accion=equipos")
-        .then(function (r) { return r.json(); })
-        .then(function (lista) {
-            if (!Array.isArray(lista)) return;
-            EQUIPOS_BACKEND = lista
-                .filter(function (e) { return e && String(e.equipo || "").trim(); })
-                .map(function (e) {
-                    return {
-                        equipo: limpiarEquipo(e.equipo),
-                        sede: String(e.sede || "").trim(),
-                        zona: String(e.zona || "").trim().toUpperCase()
-                    };
-                });
-        })
-        .catch(function () {});
-}
-
-function getEquiposCombo(sede, zona) {
-    const base = (zona && ZONA_EQUIPOS[sede] && ZONA_EQUIPOS[sede][zona] && ZONA_EQUIPOS[sede][zona].length > 0)
-        ? ZONA_EQUIPOS[sede][zona]
-        : (SEDE_EQUIPOS[sede] || []);
-    const vistos = {};
-    const mapa = {};
-    base.forEach(function (n) {
-        const key = normalizarEquipo(n);
-        if (key && !vistos[key]) { vistos[key] = true; mapa[key] = limpiarEquipo(n); }
-    });
-    (EQUIPOS_BACKEND || []).forEach(function (e) {
-        if (!e.equipo) return;
-        if (e.sede && e.sede.toUpperCase() !== String(sede || "").toUpperCase()) return;
-        if (zona && e.zona && e.zona !== String(zona || "").toUpperCase()) return;
-        const key = normalizarEquipo(e.equipo);
-        if (key && !vistos[key]) { vistos[key] = true; mapa[key] = limpiarEquipo(e.equipo); }
-    });
-    const resultado = [];
-    Object.keys(mapa).forEach(function (key) { resultado.push(mapa[key]); });
-    resultado.sort(function (a, b) {
-        return normalizarEquipo(a) < normalizarEquipo(b) ? -1 : (normalizarEquipo(a) > normalizarEquipo(b) ? 1 : 0);
-    });
-    return resultado;
-}
 
 function inicializarDatosEquipos() {
     const sedesSet = new Set();
@@ -92,6 +31,10 @@ function inicializarDatosEquipos() {
         if (sede !== "EVENTO" && zonasArr.indexOf("EXTERIOR") === -1) zonasArr.push("EXTERIOR");
         SEDE_ZONAS[sede] = zonasArr;
     }
+
+    SEDES_SEMANERO = Array.from(sedesSet).filter(function(s) {
+        return (SEDE_ZONAS[s] || []).some(function(z) { return z.indexOf("SEMANERO") === 0; });
+    });
 }
 
 function getAveriaZonas(sede) {
@@ -112,7 +55,6 @@ const ZONA_EQUIPOS = {
             "AIRE ACONDICIONADO 5 TON FAN COIL 2",
             "MESON REFRIGERADO 2 PTA 1 URSEL",
             "MESON REFRIGERADO 3 PTA 1 URSEL",
-            "ARMARIO REFRIGERADO 115 V",
             "ARMARIO REFRIGERADO URSEL 1",
             "NEVERA EXHIBIDORA",
             "SISTEMA HIDRONEUMATICO",
@@ -129,10 +71,8 @@ const ZONA_EQUIPOS = {
             "MOTOR DE INYECCION DE AIRE # 1",
             "BATIDORA KITCHENAID",
             "ENFRIADOR DE AGUA # 1",
-            "ESMECHADORA",
             "FILTRO DE CARBON ACTIVADO",
             "ELEVADOR DE CARGA",
-            "MOLINO DE CARNE",
             "TABLEROS ELECTRICOS",
             "FUMIGACION",
             "EXTINTORES",
@@ -141,7 +81,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
         ],
         "PISO 1": [
             "CAVA CUARTO DE CONSERVACION 2",
@@ -192,7 +131,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
         ],
         "PISO 2": [
             "AIRE ACONDICIONADO 5 TON FAN COIL 4",
@@ -207,7 +145,6 @@ const ZONA_EQUIPOS = {
             "ENFRIADOR DE BOTELLON OFICINAS",
             "A/A 18000BTU SALA DE REUNIONES",
             "FILTRO DE CARBON ACTIVADO",
-            "REBANADORA INDUSTRIAL DE CARNE TREVI 120V",
             "ELEVADOR DE CARGA",
             "TABLEROS ELECTRICOS",
             "FUMIGACION",
@@ -217,7 +154,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
         ],
         "TERRAZA": [
             "MOTOR EXTRACTOR 12000 CFM PLANTA BAJA",
@@ -235,7 +171,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
         ],
         "ESTACIONAMIENTO": [
             "CAVA CUARTO DE BASURA",
@@ -284,7 +219,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-             "ESTANTERIA",
         ],
         "PISO 1": [
             "A/A 12000 BTU VENTANA ///DORMITORIO",
@@ -309,7 +243,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
         ],
         "NUEVO ESPACIO": [
             "FREIDORA IMPERIAL",
@@ -345,7 +278,6 @@ const ZONA_EQUIPOS = {
             "LAMPARAS",
             "ESCRITORIOS",
             "AIRE ACONDICIONADO 5 TONELADAS ",
-             "ESTANTERIA",
         ],
         "TALLER": [
             "MICROONDAS DEL TALLER # 3",
@@ -360,7 +292,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
         ],
         "ESTACIONAMIENTO": [
             "CHAMBRANAS",
@@ -394,7 +325,6 @@ const ZONA_EQUIPOS = {
             "TABLEROS",
             "LAMPARAS",
             "ESCRITORIOS",
-            "ESTANTERIA",
             "LIMPIEZA DE CANALETAS",
             "LIMPIEZA DE TANQUES",
             "LIMPIEZA DE TANQUILLA",
@@ -419,7 +349,6 @@ const SEDE_EQUIPOS = {
         "AIRE ACONDICIONADO 5 TON FAN COIL 4",
         "AIRE ACONDICIONADO 5 TON PISO TECHO 1",
         "AMASADOR # 1",
-        "ARMARIO REFRIGERADO 115 V",
         "ARMARIO REFRIGERADO URSEL 1",
         "ARMARIO REFRIGERADO URSEL 2",
         "BATIDORA KITCHENAID",
@@ -443,8 +372,6 @@ const SEDE_EQUIPOS = {
         "ENFRIADOR DE AGUA # 4",
         "ENFRIADOR DE BOTELLON OFICINAS",
         "ESCRITORIOS",
-        "ESMECHADORA",
-        "ESTANTERIA",
         "EXTINTOR # 1",
         "EXTINTORES",
         "FERMENTADOR",
@@ -472,7 +399,6 @@ const SEDE_EQUIPOS = {
         "MESON REFRIGERADO DE GAVETA BALSAM 2 / PRINCIPAL",
         "MESON REFRIGERADO DE GAVETA COMIDA EN FAMILIA",
         "MICROONDA # 1",
-        "MOLINO DE CARNE",
         "MOTOR DE INYECCION DE AIRE # 1",
         "MOTOR DE INYECCION DE AIRE # 2",
         "MOTOR DE INYECCION DE AIRE # 3",
@@ -487,7 +413,6 @@ const SEDE_EQUIPOS = {
         "REBANADORA # 1",
         "REBANADORA # 2",
         "REBANADORA # 3 NUEVA",
-        "REBANADORA INDUSTRIAL DE CARNE TREVI 120V",
         "ROBOCOP",
         "SANTA MARIA # 1 3,5 MTS",
         "SANTA MARIA # 2 3,5 MTS",
@@ -518,7 +443,6 @@ const SEDE_EQUIPOS = {
         "ENFRIADOR DE BOTELLON # 3 TALLER",
         "ENFRIADOR SUSHI CAKE",
         "ESCALINATAS",
-        "ESTANTERIA",
         "ESCRITORIOS",
         "EXTINTORES",
         "EXTINTORES EVENTOS",
@@ -571,13 +495,11 @@ const SEDE_EQUIPOS = {
         "TABLEROS ELECTRICOS",
         "TANQUES DE AGUA (8000LTS)",
         "TANQUILLAS",
-       
     ],
     "ALTAMIRA": [
         "ALFOMBRA PISO",
         "ELEVADOR DE CARGA",
         "ESCRITORIOS",
-        "ESTANTERIA",
         "EXTINTOR # 2",
         "EXTINTORES",
         "FILTRO DE CARBON ACTIVADO",
@@ -993,7 +915,6 @@ const EQUIPO_RUTINA = {
     "ENFRIADOR DE BOTELLON OFICINAS": "Rutina Enfriadores de Agua",
     "ENFRIADOR SUSHI CAKE": "Rutina Cava Cuarto/Nevera",
     "ESCALINATAS": "Rutina Escalinatas",
-    "ESTANTERIA": "Rutina Dinamica - Estantería",
     "EXTINTOR # 1": "Rutina Seguridad",
     "EXTINTOR # 2": "Rutina Seguridad",
     "EXTINTORES": "Rutina Seguridad",
@@ -1091,4 +1012,4 @@ const EQUIPO_RUTINA = {
     "TOPE FRANCES A GAS 2": "Rutina Cocinas",
 };
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxLQkf9gdudyCUNQfWll8uZjD4nERe1IssuB4Gs_dhJxr_2G2EPFVkU-jC4F_zNEOpoxw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6C7EQkwVTA8NlsO1sbw6DSiA6rfCjhRAmZvfu-X2GM6y6AwIr33FzN-Mde3oAzEibKw/exec";

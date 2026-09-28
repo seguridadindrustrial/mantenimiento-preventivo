@@ -8,21 +8,42 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="image">
-        <img src="logo cc.soul.jpg" alt="Logo" width="50" height="50"> 
-        <h1>CCS.CATERING</h1>
+    <header class="image">
+        <button type="button" id="btnHamburguesa" class="hamburger" onclick="toggleMenuPanel()" aria-label="Abrir menu">☰</button>
+        <img src="logo cc.soul.jpg" alt="Logo" width="50" height="50">
+        <div class="image-textos">
+            <h1>CCS.CATERING</h1>
+            <div class="image-sub">Gerencia de Seguridad Industrial</div>
+        </div>
+        <div id="appBar" class="app-bar" style="display:none;">
+            <button type="button" id="appBarUser" class="app-bar-user" onclick="toggleUserMenu()" aria-label="Menu de usuario">
+                <span id="appBarNombre"></span> <span class="app-bar-caret">▾</span>
+            </button>
+            <div id="userMenu" class="user-menu">
+                <button type="button" class="user-menu-item" onclick="cerrarUserMenu(); navegar('perfil')">Perfil</button>
+                <button type="button" class="user-menu-item" id="userTemaItem" onclick="toggleTema()" aria-label="Cambiar color de la pagina">
+                    <span id="userTemaIcon">🌙</span> <span id="userTemaLabel">Modo oscuro</span>
+                </button>
+                <button type="button" class="user-menu-item" onclick="cerrarUserMenu(); cerrarSesion()">Salir</button>
+            </div>
+        </div>
+        <nav id="mainMenu" class="main-menu" style="display:none;"></nav>
+    </header>
+
+    <div id="btnAtrasPanelWrap" class="btn-atras-wrap" style="display:none;">
+        <button type="button" id="btnAtrasPanel" class="btn-atras" onclick="irAtras()" aria-label="Volver">Volver</button>
     </div>
 
     <div class="container">
-        <h1> GERENCIA DE SEGURIDAD INDUSTRIAL Y MANTENIMIENTO</h1>
-        <P>Reporte de averias/ Reporte de mantenimiento preventivo</P>
-        <br>
-
         <div id="loginSection">
-            <div class="form-group">
-                <label for="codigoTecnico">Usuario</label>
-                <input type="text" id="codigoTecnico" placeholder="Ingresa tu cedula o codigo de averia" maxlength="20">
-            </div>
+  <div class="form-group">
+    <label for="codigoTecnico">Usuario</label>
+    <input type="text" id="codigoTecnico" placeholder="Ingresa tu cedula o codigo de averia" maxlength="20">
+  </div>
+  <div class="form-group" id="loginPinGroup" style="display:none;">
+    <label for="pinTecnico">PIN de seguridad</label>
+    <input type="password" id="pinTecnico" placeholder="PIN de 6 digitos" maxlength="6" inputmode="numeric" autocomplete="off">
+  </div>
             <div class="form-actions">
                 <button type="button" class="btn-primary" id="btnLogin">Ingresar</button>
             </div>
@@ -48,18 +69,6 @@
                     </select>
                 </div>
 
-                <div class="row-fecha-hora">
-                    <div class="form-group half">
-                        <label for="fecha">Fecha</label>
-                        <input type="date" id="fecha" name="fecha" required>
-                    </div>
-
-                    <div class="form-group half">
-                        <label>Hora</label>
-                        <input type="time" id="hora" name="hora" required>
-                    </div>
-                </div>
-
                 <div class="form-group" id="equipoGroup">
                     <label for="equipo">Equipo</label>
                     <div class="combobox" id="equipoCombo">
@@ -82,7 +91,7 @@
                     <input type="text" id="equipoOtro" placeholder="Escribe el nombre del nuevo equipo...">
                 </div>
 
-                <div class="form-group" id="mantenimientoGroup">
+                <div class="form-group" id="mantenimientoGroup" style="display:none;">
                     <label for="mantenimiento"> Mantenimiento</label>
                     <select id="mantenimiento" name="mantenimiento" required>
                         <option value="" disabled selected>Seleccionar mantenimiento...</option>
@@ -137,6 +146,11 @@
                     <div id="checkinsContainer" class="checkins-container"></div>
                 </div>
 
+                <div class="form-group" id="retrasoGroup" style="display:none;">
+                    <label for="retrasoMotivo">Este preventivo supero su limite de 7 dias. ¿Por que no lo realizaste a tiempo?</label>
+                    <textarea id="retrasoMotivo" rows="3" placeholder="Explica el motivo del retraso..."></textarea>
+                </div>
+
                 <div class="form-group" id="descripcionTallerGroup" style="display:none;">
                     <label for="descripcionTaller">Descripcion (opcional)</label>
                     <textarea id="descripcionTaller" name="descripcionTaller" rows="3" placeholder="Observaciones adicionales..."></textarea>
@@ -152,7 +166,7 @@
             <div id="paso3" style="display:none;">
                 <div class="form-group">
                     <label>Repuestos</label>
-                    <p class="hint">¿Se necesitan repuestos para este mantenimiento?</p>
+                    <p class="hint">¿Utilizaste repuestos o necesitas repuestos para este mantenimiento?</p>
                     <div class="toggle-group">
                         <button type="button" class="toggle-btn" id="repSi" data-value="Si" onclick="toggleRepuestosToggle(this)">Si</button>
                         <button type="button" class="toggle-btn" id="repNo" data-value="No" onclick="toggleRepuestosToggle(this)">No</button>
@@ -190,10 +204,12 @@
                     <button type="submit" class="btn-primary">Enviar</button>
                 </div>
             </div>
+
+            <div id="prevAsignadoEquipos" style="display:none;"></div>
         </form>
 
         <div id="miniNav" style="display:none;">
-            <button type="button" class="mini-nav-btn" id="btnMiniNav" onclick="irMiniNav()" title="Ir al boton Siguiente">↓</button>
+            <button type="button" class="mini-nav-btn" id="btnMiniNav" onclick="irMiniNav()" title="Ir al boton Siguiente">v</button>
         </div>
 
         <form id="averiaForm" style="display:none;" novalidate>
@@ -213,20 +229,59 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="aDescripcion">Descripcion de la averia</label>
-                <textarea id="aDescripcion" rows="3" placeholder="Describe que equipo es y que le sucede..."></textarea>
+            <div class="form-group" id="aEquipoGroup">
+                    <label for="aEquipo">Equipo</label>
+                <div class="combobox" id="aEquipoCombo">
+                    <div class="combobox-display" id="aEquipoDisplay" onclick="toggleCombobox('aEquipo')">Seleccionar equipo...</div>
+                    <input type="hidden" id="aEquipo" name="aEquipo">
+                    <div class="combobox-dropdown" id="aEquipoDropdown">
+                        <input type="text" class="combobox-search" id="aEquipoSearch" placeholder="Buscar equipo..." autocomplete="off" oninput="filtrarCombobox('aEquipo', this.value)">
+                        <div class="combobox-options" id="aEquipoOptions"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" id="aEquipoLibreGroup" style="display:none;">
+                <label for="aEquipoLibre">Equipo del evento</label>
+                <input type="text" id="aEquipoLibre" placeholder="Escribe el equipo...">
+                <label for="aEventoLibre" style="margin-top:12px;">Evento</label>
+                <input type="text" id="aEventoLibre" placeholder="Nombre del evento...">
+            </div>
+
+            <div class="form-group" id="aEquipoExteriorGroup" style="display:none;">
+                <label for="aEquipoExterior">Equipo</label>
+                <input type="text" id="aEquipoExterior" placeholder="Escribe el nombre del equipo...">
+            </div>
+
+            <div class="form-group" id="aEquipoOtroGroup" style="display:none;">
+                <label for="aEquipoOtro">Nombre del equipo</label>
+                <input type="text" id="aEquipoOtro" placeholder="Escribe el nombre del nuevo equipo...">
             </div>
 
             <div class="form-group">
-                <label id="aFotosLabel">Fotos - Obligatoria (maximo 2)</label>
-                <div class="photo-buttons">
-                    <label for="aImagenes" class="btn-photo">Tomar foto</label>
-                    <label for="aImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
+                <label>¿El equipo presenta una averia?</label>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn" id="aAvSi" data-value="Si" onclick="toggleAveriaToggle(this)">Si</button>
+                    <button type="button" class="toggle-btn" id="aAvNo" data-value="No" onclick="toggleAveriaToggle(this)">No</button>
                 </div>
-                <input type="file" id="aImagenes" accept="image/*" capture="environment" style="display:none;">
-                <input type="file" id="aImagenesUpload" accept="image/*" multiple style="display:none;">
-                <div id="aImagenesPreview" class="imagenes-preview"></div>
+            </div>
+
+            <div id="aAveriaDetalle" style="display:none;">
+                <div class="form-group">
+                    <label for="aDescripcion">Descripcion de la averia</label>
+                    <textarea id="aDescripcion" rows="3" placeholder="Describe que le pasa al equipo..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label id="aFotosLabel">Fotos (maximo 2) - Obligatoria</label>
+                    <div class="photo-buttons">
+                        <label for="aImagenes" class="btn-photo">Tomar foto</label>
+                        <label for="aImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
+                    </div>
+                    <input type="file" id="aImagenes" accept="image/*" capture="environment" style="display:none;">
+                    <input type="file" id="aImagenesUpload" accept="image/*" multiple style="display:none;">
+                    <div id="aImagenesPreview" class="imagenes-preview"></div>
+                </div>
             </div>
 
             <div class="form-actions">
@@ -237,6 +292,7 @@
         <form id="resolucionForm" style="display:none;" novalidate>
             <p id="resolucionInfo" class="info-banner"></p>
             <div id="resolucionEquipo" class="equipo-banner"></div>
+            <div id="resolucionFotos"></div>
 
             <div class="form-group">
                 <label for="rTecnico">Tecnico</label>
@@ -246,19 +302,18 @@
             </div>
 
             <div class="form-group">
-                <label>¿Se arreglo la averia?</label>
+                <label id="rPregunta">¿Se arreglo la averia?</label>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn" id="rSi" data-value="Si" onclick="toggleRealizado(this)">Si</button>
                     <button type="button" class="toggle-btn" id="rNo" data-value="No" onclick="toggleRealizado(this)">No</button>
                     <button type="button" class="toggle-btn" id="rProceso" data-value="En proceso" onclick="toggleRealizado(this)">En proceso</button>
-                    <button type="button" class="toggle-btn" id="rFalsa" data-value="Falsa averia" onclick="toggleRealizado(this)">Falsa averia</button>
                 </div>
             </div>
 
-            <div class="form-group" id="rDescripcionGroup" style="display:none;">
-                <label for="rDescripcion" id="rDescripcionLabel">Descripcion del motivo</label>
-                <textarea id="rDescripcion" rows="3" placeholder="Por que no se realizo / en que quedo..."></textarea>
-            </div>
+<div class="form-group" id="rDescripcionGroup" style="display:none;">
+                    <label for="rDescripcion">Descripcion</label>
+                    <textarea id="rDescripcion" rows="3" placeholder="Describe lo realizado..."></textarea>
+                </div>
 
             <div class="form-group">
                 <label>Repuestos utilizados</label>
@@ -276,7 +331,7 @@
             </div>
 
             <div class="form-group">
-                <label id="rFotosLabel">Fotos (maximo 2, opcional)</label>
+                <label id="rFotosLabel">Fotos (maximo 2) - Obligatoria</label>
                 <div class="photo-buttons">
                     <label for="rImagenes" class="btn-photo">Tomar foto</label>
                     <label for="rImagenesUpload" class="btn-photo btn-photo-alt">Subir foto</label>
@@ -364,6 +419,193 @@
                 <div id="calendarioMsg" style="margin-top:15px;"></div>
             </div>
         </div>
+
+        <div id="panelContent">
+
+            <section id="inicioSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Inicio</h2>
+                <div id="tareasInicio"></div>
+                <div id="dashboardStats" class="dashboard-grid"></div>
+                <div id="dashboardCharts" class="dashboard-charts"></div>
+            </section>
+
+            <section id="mantenimientoSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Mantenimiento</h2>
+                <div class="dashboard-cards" id="mantCards">
+                    <button class="dash-card dash-card-mant" onclick="navtarMantCard('PREVENTIVO')">
+                        <div class="dash-card-icon">🔧</div>
+                        <div class="dash-card-label">Preventivo</div>
+                    </button>
+                    <button class="dash-card dash-card-mant" onclick="navegarAForm('checkinForm','CORRECTIVO')">
+                        <div class="dash-card-icon">🛠️</div>
+                        <div class="dash-card-label">Correctivo</div>
+                    </button>
+                    <button class="dash-card dash-card-mant" onclick="navtarMantCard('OTRO')">
+                        <div class="dash-card-icon">⚙️</div>
+                        <div class="dash-card-label">Orden de trabajo</div>
+                    </button>
+                    <button class="dash-card dash-card-mant" onclick="navegarAForm('checkinForm','SEMANERO')">
+                        <div class="dash-card-icon">📋</div>
+                        <div class="dash-card-label">Semanero</div>
+                    </button>
+                </div>
+                <div id="mantSubContent" style="display:none;"></div>
+            </section>
+
+            <section id="averiasSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Averias</h2>
+                <div id="averiasContent" class="lista-vacia">
+                    <p>Cargando...</p>
+                </div>
+            </section>
+
+            <section id="ordenesSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Orden de trabajo</h2>
+                <div id="ordenesContent" class="lista-vacia">
+                    <p>Cargando...</p>
+                </div>
+            </section>
+
+            <section id="repuestosSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Repuestos</h2>
+                <div id="repuestosContent" class="lista-vacia">
+                    <p>Cargando...</p>
+                </div>
+            </section>
+
+            <section id="historialSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Historial</h2>
+                <div class="form-group">
+                    <label for="historialFiltro">Filtrar por</label>
+                    <select id="historialFiltro" onchange="cargarHistorial()">
+                        <option value="todo">Todo</option>
+                        <option value="averias">Solo averias</option>
+                        <option value="mantenimientos">Solo mantenimientos</option>
+                    </select>
+                </div>
+                <input type="text" id="historialBuscar" placeholder="Buscar por numero, fecha, sede o equipo..." oninput="cargarHistorial()" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">
+                <div id="historialTabla" class="tabla-scroll"></div>
+            </section>
+
+            <section id="perfilSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Perfil</h2>
+                <div class="form-group">
+                    <label for="perfilNombre">Nombre</label>
+                    <input type="text" id="perfilNombre" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="perfilRol">Rol</label>
+                    <input type="text" id="perfilRol" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="perfilWhatsapp">Numero de WhatsApp</label>
+                    <input type="text" id="perfilWhatsapp" placeholder="Ej: 58412...">
+                </div>
+                <div class="form-group">
+                    <label for="perfilCorreo">Correo</label>
+                    <input type="email" id="perfilCorreo" placeholder="correo@ejemplo.com">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-primary" onclick="guardarPerfil()">Guardar cambios</button>
+                </div>
+                <div id="perfilMsg" style="margin-top:10px;"></div>
+                <div id="compartirWrap" style="display:none;margin-top:14px;">
+                    <label style="font-weight:600;">Compartir modulos</label>
+                    <div id="compartirPanel" style="margin-top:6px;"></div>
+                </div>
+            </section>
+
+            <section id="solicitudesSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Solicitudes</h2>
+                <div id="solicitudesContent" class="lista-vacia">
+                    <p>Modulo en construccion.</p>
+                </div>
+            </section>
+
+            <section id="preventivosSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Preventivos</h2>
+                <div id="preventivosContent" class="lista-vacia">
+                    <p>Modulo en construccion.</p>
+                </div>
+            </section>
+
+            <section id="empleadosSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Empleados</h2>
+                <div id="empleadosContent" class="lista-vacia">
+                    <p>Modulo en construccion.</p>
+                </div>
+            </section>
+
+            <section id="asistenciaSection" class="module-section" style="display:none;">
+                <div class="mod-encabezado">
+                    <h2 class="module-title" style="margin-bottom:2px;">Asistencia</h2>
+                    <div class="mod-acciones">
+                        <button type="button" class="btn-mini" onclick="recargarAsistencia()">Recargar</button>
+                        <a class="btn-mini" id="asistenciaLinkExterno" href="https://asistencia-kappa-nine.vercel.app/" target="_blank" rel="noopener">Abrir aparte</a>
+                    </div>
+                </div>
+                <p class="mod-nota">Entra con tu cedula. El sistema verifica que estes en la sede (Ruices o Deposito) antes de dejarte marcar.</p>
+                <div class="asistencia-marco">
+                    <iframe id="asistenciaFrame" class="asistencia-frame" title="Registro de asistencia"
+                        src="https://asistencia-kappa-nine.vercel.app/" allow="geolocation"
+                        loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                    <div id="asistenciaAviso" class="asistencia-aviso" style="display:none;">
+                        <p>No se pudo cargar el panel de asistencia.</p>
+                        <a class="btn-mini" href="https://asistencia-kappa-nine.vercel.app/" target="_blank" rel="noopener">Abrir en una pestana nueva</a>
+                    </div>
+                </div>
+            </section>
+
+            <section id="aseoSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Aseo</h2>
+                <div class="lista-vacia">
+                    <div style="font-size:3rem;margin-bottom:8px;">👷</div>
+                    <p>Modulo en construccion.</p>
+                </div>
+            </section>
+
+            <section id="itSection" class="module-section" style="display:none;">
+                <h2 class="module-title">IT</h2>
+                <div class="lista-vacia">
+                    <div style="font-size:3rem;margin-bottom:8px;">💻</div>
+                    <p>Modulo en construccion.</p>
+                    <div style="font-size:3rem;margin-top:8px;">👷</div>
+                </div>
+            </section>
+
+            <section id="documentosSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Documentos</h2>
+                <div class="lista-vacia">
+                    <div style="font-size:3rem;margin-bottom:8px;">📄</div>
+                    <p>Modulo en construccion.</p>
+                    <div style="font-size:3rem;margin-top:8px;">👷</div>
+                </div>
+            </section>
+
+            <section id="cuentasSection" class="module-section" style="display:none;">
+                <h2 class="module-title">Cuentas</h2>
+                <div class="lista-vacia">
+                    <div style="font-size:3rem;margin-bottom:8px;">💰</div>
+                    <p>Modulo en construccion.</p>
+                    <div style="font-size:3rem;margin-top:8px;">👷</div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <div id="detalleTareaModal" style="display:none;">
+        <div class="resumen-modal-overlay" onclick="if(event.target===this)cerrarDetalleTarea()">
+            <div class="resumen-modal" style="max-width:520px;">
+                <h3 id="dtTitulo">Detalle de la tarea</h3>
+                <div id="dtInfo" style="font-size:.9rem;color:#333;line-height:1.5;margin:6px 0 10px;"></div>
+                <div id="dtFotos"></div>
+                <div class="resumen-modal-actions" style="justify-content:flex-end;">
+                    <button type="button" class="btn-secondary" onclick="cerrarDetalleTarea()">Cerrar</button>
+                    <button type="button" class="btn-primary" id="dtBtnIr" style="display:none;">Ir</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="resumenModal" style="display:none;">
@@ -380,19 +622,20 @@
         </div>
     </div>
 
-    <script src="js/data.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/repuestos.js"></script>
-    <script src="js/checkin.js"></script>
-    <script src="js/averia.js"></script>
-    <script src="js/resolucion.js"></script>
-    <script src="js/semanero.js"></script>
-    <script src="js/cistern.js"></script>
-    <script src="js/calendario.js"></script>
-    <script src="js/app.js"></script>
+    <script defer src="js/data.js?v=14"></script>
+    <script defer src="js/utils.js"></script>
+    <script defer src="js/repuestos.js"></script>
+    <script defer src="js/checkin.js"></script>
+    <script defer src="js/averia.js"></script>
+    <script defer src="js/resolucion.js"></script>
+    <script defer src="js/semanero.js"></script>
+    <script defer src="js/cistern.js"></script>
+    <script defer src="js/calendario.js"></script>
+    <script defer src="js/app.js?v=14"></script>
+    <script defer src="js/ordenes.js"></script>
 
     <footer>
-        <p>© 2026 CCS.CATERING. Todos los derechos reservados.</p>
+        <p>© 2026 Todos los derechos reservados.</p>
         <p><a href="https://wa.me/584124756318" target="_blank" rel="noopener noreferrer">Soporte técnico</a></p>
     </footer>
 </body>

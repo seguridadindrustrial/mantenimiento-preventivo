@@ -1,5 +1,18 @@
 // resolucion.js - Resolucion de averias
 
+var resolucionEsOrden = false;
+
+function finalizarResolucion() {
+    if (usuarioActual && typeof navegar === "function") {
+        document.getElementById("resolucionForm").style.display = "none";
+        document.getElementById("loginSection").style.display = "none";
+        if (typeof actualizarBotonAtras === "function") actualizarBotonAtras();
+        navegar(moduloActivo);
+    } else {
+        volverAlLogin();
+    }
+}
+
 function toggleRepuestosResolucion(btn) {
     const group = btn.parentElement;
     group.querySelectorAll(".toggle-btn").forEach(b => {
@@ -15,18 +28,34 @@ function toggleRepuestosResolucion(btn) {
 }
 
 function abrirResolucion(av) {
+    if (!av) { alert("Datos de la averia invalidos."); return; }
     resolucionActualNumero = String(av.numero || "");
-    mostrarSoloSeccion("resolucionForm");
+    if (typeof historialModulos !== "undefined" && usuarioActual) {
+        if (historialModulos[historialModulos.length - 1] !== moduloActivo) {
+            historialModulos.push(moduloActivo);
+            if (historialModulos.length > 20) historialModulos.shift();
+        }
+    }
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("resolucionForm").style.display = "block";
     document.getElementById("resolucionInfo").textContent =
         "Averia " + resolucionActualNumero + " | Sede: " + (av.sede || "") +
         (av.zona ? " | Zona: " + av.zona : "") +
         " | Descripcion: " + (av.descripcion || "");
     document.getElementById("resolucionEquipo").textContent = "Equipo: " + (av.equipo || "No especificado");
+    var fotosCont = document.getElementById("resolucionFotos");
+    if (fotosCont) {
+        var htmlF = (typeof htmlFotosAveria === "function") ? htmlFotosAveria(av) : "";
+        fotosCont.style.display = htmlF ? "" : "none";
+        if (htmlF) fotosCont.innerHTML = '<div style="font-weight:700;color:#333;font-size:.85rem;margin-bottom:4px;">Fotos de la averia</div>' + htmlF;
+    }
+    limpiarHora("r");
     clearResolucionForm();
     configurarTecnicoResolucion(av.asignado || "");
 
     document.getElementById("resolucionForm").style.display = "block";
     if (typeof mostrarMiniNav === "function") mostrarMiniNav();
+    if (typeof actualizarBotonAtras === "function") actualizarBotonAtras();
 }
 
 function configurarTecnicoResolucion(asignado) {
@@ -65,16 +94,13 @@ function toggleRealizado(el) {
     }
     el.classList.add(el.dataset.value === "Si" ? "active-si" : "active-no");
     const grupo = document.getElementById("rDescripcionGroup");
-    const label = document.getElementById("rDescripcionLabel");
-    const textarea = document.getElementById("rDescripcion");
-    if (el.dataset.value === "Si") {
-        label.textContent = "¿Que hiciste para resolverlo?";
-        textarea.placeholder = "Describe lo que realizaste para solucionar la averia...";
-    } else {
-        label.textContent = "Descripcion del motivo";
-        textarea.placeholder = "Por que no se realizo / en que quedo...";
-    }
+    const descripcion = document.getElementById("rDescripcion");
     grupo.style.display = "block";
+    if (el.dataset.value === "Si") {
+        descripcion.placeholder = "Describe brevemente el trabajo realizado...";
+    } else {
+        descripcion.placeholder = "Por que no se realizo / en que quedo...";
+    }
 }
 
 async function agregarImagenesResolucion(files) {
@@ -119,9 +145,12 @@ function enviarResolucion(e) {
     if (resolucionEnviando) return;
 
     const numero = resolucionActualNumero;
-    const toggles = ["rSi", "rNo", "rProceso", "rFalsa"].map(id => document.getElementById(id));
+    const toggles = ["rSi", "rNo", "rProceso"].map(id => document.getElementById(id));
     const activo = toggles.find(b => b.classList.contains("active-si") || b.classList.contains("active-no"));
     const realizado = activo ? activo.dataset.value : "";
+    const fh = fechaHoraAhora();
+    const fecha = fh.fecha;
+    const hora = fh.hora;
     const tecnico = document.getElementById("rTecnico").value;
     const descripcion = document.getElementById("rDescripcion").value.trim();
 
@@ -130,7 +159,7 @@ function enviarResolucion(e) {
         return;
     }
     if (!realizado) {
-        alert("Indica el estado de la averia (Si/No/En proceso/Falsa averia).");
+        alert("Indica el estado de la averia (Si/En proceso/No).");
         return;
     }
     if (!tecnico) {
@@ -138,11 +167,7 @@ function enviarResolucion(e) {
         return;
     }
     if (!descripcion) {
-        alert("Escribe una descripcion de lo realizado.");
-        return;
-    }
-    if (descripcion.length < 10) {
-        alert("La descripcion debe tener minimo 10 caracteres.");
+        alert(realizado === "Si" ? "Describe el trabajo realizado." : "Escribe una descripcion.");
         return;
     }
 
@@ -167,9 +192,16 @@ function enviarResolucion(e) {
         }
     });
 
+    if (imagenesNuevas.length === 0 && enviadas.length === 0) {
+        alert("Debes adjuntar al menos 1 foto.");
+        return;
+    }
+
     const registro = {
         tipo: "resolucion",
         numero: numero,
+        fecha: fecha,
+        hora: hora,
         tecnico: tecnico,
         realizado: realizado,
         descripcion: descripcion,
@@ -181,20 +213,27 @@ function enviarResolucion(e) {
     const btnEnviar = document.getElementById("enviarResolucionBtn");
     btnEnviar.disabled = true;
 
+    const esOrden = resolucionEsOrden && String(numero).indexOf("OT-") === 0;
+
     postJSON(registro)
         .then(() => {
             huellasNuevas.forEach(h => guardarImagenEnviada(numero, h));
             resolucionEnviando = false;
             btnEnviar.disabled = false;
-            if (averiaCerrada(realizado)) {
-                alert("Averia " + numero + " cerrada correctamente.");
-                marcarAveriaResuelta(numero);
+            if (typeof notiRefrescar === "function") notiRefrescar(true);
+            if (esOrden) borrarCacheV("ordenes_trabajo");
+            const cerrada = averiaCerrada(realizado);
+            if (cerrada) {
+                alert((esOrden ? "Orden " : "Averia ") + numero + " cerrada correctamente.");
+                if (!esOrden) marcarAveriaResuelta(numero);
                 clearResolucionForm();
-                volverAlLogin();
+                finalizarResolucion();
             } else {
-                alert("Resolucion enviada. Podras reingresar el codigo para volver a llenar el formulario.");
+                alert(esOrden
+                    ? "Resolucion registrada. La orden " + numero + " queda en proceso."
+                    : "Resolucion enviada. Podras reingresar el codigo para volver a llenar el formulario.");
                 clearResolucionForm();
-                volverAlLogin();
+                finalizarResolucion();
             }
         })
         .catch(() => {
@@ -211,6 +250,7 @@ function marcarAveriaResuelta(numero) {
         }
         return a;
     });
+    if (typeof borrarCacheV === "function") borrarCacheV("averias");
 }
 
 function clearResolucionForm() {
@@ -224,20 +264,29 @@ function clearResolucionForm() {
     document.getElementById("rDescripcionGroup").style.display = "none";
     document.getElementById("rRepuestosGroup").style.display = "none";
     document.getElementById("rRepuestosRows").innerHTML = "";
-    ["rSi", "rNo", "rProceso", "rFalsa"].forEach(id => {
-        document.getElementById(id).classList.remove("active-si", "active-no");
+    ["rSi", "rNo", "rProceso"].forEach(id => {
+        var b = document.getElementById(id);
+        if (b) b.classList.remove("active-si", "active-no");
     });
+    var botonFalsa = document.getElementById("rFalsa");
+    if (botonFalsa) botonFalsa.textContent = "Falsa averia";
+    var rPregunta = document.getElementById("rPregunta");
+    if (rPregunta) rPregunta.textContent = "¿Se arreglo la averia?";
+    resolucionEsOrden = false;
     ["rRepSi", "rRepNo"].forEach(id => {
         document.getElementById(id).classList.remove("active-si", "active-no");
     });
     resolucionImagenes = [];
+    limpiarHora("r");
 }
 
 function volverAlLogin() {
     resolucionActualNumero = "";
     resolucionImagenes = [];
     document.getElementById("resolucionEquipo").textContent = "";
-    mostrarSoloSeccion("loginSection");
+    document.getElementById("resolucionForm").style.display = "none";
+    document.getElementById("cisternaPagoSection").style.display = "none";
+    document.getElementById("loginSection").style.display = "block";
     document.getElementById("codigoTecnico").value = "";
     const errorEl = document.getElementById("loginError");
     errorEl.style.display = "none";

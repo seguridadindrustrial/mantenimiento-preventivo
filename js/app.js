@@ -3436,6 +3436,23 @@ function editarAveriaModulo(numero) {
     window.scrollTo(0, 0);
 }
 
+// El POST sale sin esperar respuesta, asi que hay que darle tiempo al servidor
+// y volver a preguntar hasta que el cambio aparezca. Sin esto se revisa antes
+// de tiempo y parece que la operacion fallo cuando si se hizo.
+function esperarCambioAveria(numero, comprobar, intentos) {
+    var n = intentos || 5;
+    function revisar(i) {
+        return fetchJSON("averias", {}, { cacheMs: 0 }).then(function (res) {
+            var lista = Array.isArray(res) ? res : (res && res.averias) || [];
+            var a = lista.filter(function (x) { return x.numero === numero; })[0] || null;
+            if (comprobar(a)) return a;
+            if (i >= n) return a;
+            return new Promise(function (r) { setTimeout(r, 1500); }).then(function () { return revisar(i + 1); });
+        });
+    }
+    return revisar(1);
+}
+
 function guardarEdicionAveria(numero) {
     var cambios = {
         sede: document.getElementById("edSede").value.trim(),
@@ -3457,13 +3474,13 @@ function guardarEdicionAveria(numero) {
         descripcion: cambios.descripcion
     }).then(function (r) {
         if (!r || r.status === "error") { alert((r && r.message) || "No se pudo editar la averia."); return; }
-        return fetchJSON("averias", {}, { cacheMs: 0 }).then(function (res) {
-            var lista = Array.isArray(res) ? res : (res && res.averias) || [];
-            var a = lista.filter(function (x) { return x.numero === numero; })[0];
+        return esperarCambioAveria(numero, function (a) {
+            return a && String(a.descripcion || "") === cambios.descripcion && String(a.zona || "") === cambios.zona;
+        }).then(function (a) {
             if (!a) { alert("La averia " + numero + " ya no existe."); renderAsignarAverias(); return; }
             if (String(a.descripcion || "") !== cambios.descripcion || String(a.zona || "") !== cambios.zona) {
-                alert("El servidor no guardo los cambios.\n\nTu usuario es \"" + (usuarioActual ? usuarioActual.nombre : "") +
-                    "\". Solo pueden editar averias los administradores (ALBERTO BLANCO o LOLY GARCIA, tal como estan escritos en el sistema).");
+                alert("El servidor no guardo los cambios.\n\nTu usuario es \"" + (usuarioActual ? usuarioActual.nombre : "(vacio)") +
+                    "\" y solo pueden editar averias los administradores (ALBERTO BLANCO o LOLY GARCIA).");
                 return;
             }
             borrarCacheV("averias");
@@ -3479,12 +3496,10 @@ function borrarAveriaModulo(numero) {
     postJSONRespuesta({ tipo: "borrar_averia", numero: numero, empleado: usuarioActual ? usuarioActual.nombre : "" })
         .then(function (r) {
             if (!r || r.status === "error") { alert((r && r.message) || "No se pudo borrar la averia."); return; }
-            return fetchJSON("averias", {}, { cacheMs: 0 }).then(function (res) {
-                var lista = Array.isArray(res) ? res : (res && res.averias) || [];
-                var sigue = lista.filter(function (x) { return x.numero === numero; }).length > 0;
-                if (sigue) {
-                    alert("El servidor no boro la averia.\n\nTu usuario es \"" + (usuarioActual ? usuarioActual.nombre : "") +
-                        "\". Solo pueden borrar averias los administradores (ALBERTO BLANCO o LOLY GARCIA, tal como estan escritos en el sistema).");
+            return esperarCambioAveria(numero, function (a) { return !a; }).then(function (a) {
+                if (a) {
+                    alert("El servidor no boro la averia.\n\nTu usuario es \"" + (usuarioActual ? usuarioActual.nombre : "(vacio)") +
+                        "\" y solo pueden borrar averias los administradores (ALBERTO BLANCO o LOLY GARCIA).");
                     return;
                 }
                 borrarCacheV("averias");

@@ -109,8 +109,12 @@ function mostrarBloqueoLogin(bloqueadoHastaUnix) {
     }
     var btn = document.getElementById("btnLogin");
     var input = document.getElementById("codigoTecnico");
+    // El campo PIN tambien se bloquea: si no, queda escribiendo en un formulario
+    // que no hace nada porque el boton esta deshabilitado.
+    var pinInp = document.getElementById("pinTecnico");
     btn.disabled = true;
     input.disabled = true;
+    if (pinInp) pinInp.disabled = true;
     info.className = "blocked";
     info.style.display = "block";
 
@@ -123,6 +127,7 @@ function mostrarBloqueoLogin(bloqueadoHastaUnix) {
             info.style.display = "none";
             btn.disabled = false;
             input.disabled = false;
+            if (pinInp) pinInp.disabled = false;
             saveLoginAttempts({ count: 0, blockedUntil: 0 });
             return;
         }
@@ -136,16 +141,14 @@ function mostrarBloqueoLogin(bloqueadoHastaUnix) {
     info.innerHTML = "Demasiados intentos fallidos.<br>Dispositivo bloqueado temporalmente.<span class='countdown'>" + mins + "m " + (secs < 10 ? "0" : "") + secs + "s</span>";
 }
 
-// El PIN solo aparece si el servidor lo pide: asi quien todavia no lo tiene
-// entra igual (cedula) y quien ya lo tiene lo escribe.
+// El campo PIN ya esta visible desde el inicio, junto a la cedula: se escriben
+// los dos de una vez y no hay un paso extra. Esta funcion queda como red de
+// seguridad por si algo lo oculta, y para poder poner el foco ahi.
 function mostrarCampoPin() {
     var grupo = document.getElementById("loginPinGroup");
     if (grupo) grupo.style.display = "block";
     var input = document.getElementById("pinTecnico");
-    if (input) {
-        input.value = "";
-        input.focus();
-    }
+    if (input) input.focus();
 }
 
 function mostrarIntentosRestantes(restantes) {
@@ -960,6 +963,9 @@ function loginTecnico() {
         resetLoginAttempts();
         document.getElementById("loginSection").style.display = "none";
         document.getElementById("codigoTecnico").value = "";
+        // El PIN tambien se borra al entrar: queda en la variable de la sesión,
+        // pero no en la pantalla, que se puede quedar abierta en una mesa.
+        if (pinInput) pinInput.value = "";
         construirMenu(rol);
         document.getElementById("appBar").style.display = "flex";
         document.getElementById("btnHamburguesa").style.display = "flex";
@@ -983,6 +989,21 @@ function loginTecnico() {
         } else {
             mostrarIntentosRestantes(LOGIN_MAX_INTENTOS - intentos.count);
         }
+    };
+
+    // El PIN va junto a la cedula, pero cuando viene mal hay que decir algo
+    // util: si el campo esta vacio, el problema no es que este equivocado sino
+    // que falta escribirlo, y el mensaje del servidor ("PIN incorrecto")
+    // manda a la gente a revisar el PIN que no escribio.
+    const errorPin = function (respuesta) {
+        var campo = document.getElementById("pinTecnico");
+        if (campo) campo.value = "";
+        mostrarCampoPin();
+        errorEl.textContent = pin
+            ? ((respuesta && respuesta.mensaje) || "PIN incorrecto.")
+            : "Tu cedula tiene PIN. Escribelo en el campo PIN para entrar.";
+        errorEl.style.display = "block";
+        mostrarIntentosRestantes(respuesta ? respuesta.restantes : 0);
     };
 
     const procesarLogin = function (av) {
@@ -1016,14 +1037,7 @@ function loginTecnico() {
                     return;
                 }
                 if (resultado && resultado.status === "pin_invalido") {
-                    mostrarCampoPin();
-                    var infoPin = document.getElementById("loginBlockInfo");
-                    if (infoPin) infoPin.style.display = "none";
-                    errorEl.textContent = resultado.mensaje || "PIN incorrecto.";
-                    errorEl.style.display = "block";
-                    // El PIN fallido cuenta como intento, asi que se avisa
-                    // igual que cuando falla la cedula.
-                    mostrarIntentosRestantes(resultado.restantes);
+                    errorPin(resultado);
                     return;
                 }
                 if (resultado && resultado.status === "ok") {
@@ -1040,10 +1054,7 @@ function loginTecnico() {
                                 document.getElementById("codigoTecnico").value = "";
                                 mostrarBloqueoLogin(bloqueadoHasta2);
                             } else if (res2 && res2.status === "pin_invalido") {
-                                mostrarCampoPin();
-                                errorEl.textContent = res2.mensaje || "PIN incorrecto.";
-                                errorEl.style.display = "block";
-                                mostrarIntentosRestantes(res2.restantes);
+                                errorPin(res2);
                             } else if (res2 && res2.status === "ok") {
                                 pinEnMemoria = pin;
                                 iniciarPanel(res2);

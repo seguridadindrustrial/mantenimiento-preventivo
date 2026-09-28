@@ -594,6 +594,10 @@ function cargarRutinasDinamicas() {
     });
     if (isLoginBlocked()) mostrarBloqueoLogin();
 
+    // Recargar ya no cierra la sesion. Va al final a proposito: primero se
+    // registran los eventos, por si al restaurar se hace falta el boton.
+    if (!isLoginBlocked()) restaurarSesion();
+
     document.getElementById("btnPaso3").addEventListener("click", function () {
         if (esTaller && esSemanarioRuices) {
             semanarioSiguiente();
@@ -1050,6 +1054,16 @@ function loginTecnico() {
         navegar("inicio");
         if (typeof notiIniciar === "function") notiIniciar();
         iniciarRefrescoVivo();
+        // Se guarda la sesion para que un refresco no cierre esto, y con ella
+        // el PIN, que es lo que permite despues marcar asistencia.
+        guardarSesion({
+            nombre: personal.nombre,
+            tipo: personal.tipo,
+            rol: rol,
+            cedula: personal.cedula || null,
+            asistencia: personal.asistencia,
+            __pin: pin
+        });
         if (typeof fetchJSON === "function") {
             fetchJSON("personal", {}, { cacheMs: 300000 }).catch(function () {});
         }
@@ -1602,6 +1616,152 @@ function empujarModuloHistorial(m) {
     }
 }
 
+// ============================================================================
+//  SESION SOBREVIVIENTE AL REFRESCO
+//
+//  Antes, recargar la pagina cerraba la sesion: habia que volver a escribir
+//  cedula y PIN. Y sin PIN en memoria el formulario de asistencia se quedaba
+//  sin poder pedir ticket para marcar.
+//
+//  Se guarda en sessionStorage, no en localStorage, a proposito: asi el PIN
+//  sobrevive al refresco (que es lo que se pidio) pero desaparece al cerrar la
+//  pestaña. Con localStorage el PIN quedaria en el dispositivo, en texto
+//  plano, y estas tablets son de uso compartido.
+//
+//  Restaurar NO llama al servidor. Si lo hiciera, cada refresco contaria como
+//  un intento de acceso y el limite de cinco se consumiria solo: recargar
+//  cuatro veces dejaria a alguien bloqueado sin haber fallado nunca.
+// ============================================================================
+
+var SESION_KEY = "sesionApp";
+
+function guardarSesion(personal) {
+    try {
+        // No se guarda el mapa de compartir entero: pesa y se vuelve a pedir
+        // con fetchJSON al montar el panel.
+        sessionStorage.setItem(SESION_KEY, JSON.stringify({
+            nombre: personal.nombre,
+            tipo: personal.tipo,
+            rol: personal.rol || "",
+            cedula: personal.cedula || null,
+            asistencia: personal.asistencia === true ? true : (personal.asistencia === false ? false : undefined),
+            pin: personal.__pin || "",
+            modulo: moduloActivo || "inicio",
+            guardado: Date.now()
+        }));
+    } catch (e) { /* modo privado o cuota llena: la app sigue igual */ }
+}
+
+function leerSesion() {
+    try {
+        var crudo = sessionStorage.getItem(SESION_KEY);
+        if (!crudo) return null;
+        var s = JSON.parse(crudo);
+        if (!s || !s.nombre) return null;
+        return s;
+    } catch (e) { return null; }
+}
+
+function borrarSesion() {
+    try { sessionStorage.removeItem(SESION_KEY); } catch (e) {}
+}
+
+// Restaura la sesion al recargar. Devuelve true si la app quedo abierta, para
+// que quien llama no tenga que preguntar despues.
+function restaurarSesion() {
+    var s = leerSesion();
+    if (!s) return false;
+
+    var restaurar = function (compartir) {
+        usuarioActual = {
+            nombre: s.nombre,
+            tipo: s.tipo,
+            rol: s.rol,
+            cedula: s.cedula,
+            asistencia: s.asistencia
+        };
+        pinEnMemoria = s.pin || "";
+        tecnicoNombre = s.nombre;
+        empleadoNombre = s.nombre;
+        compartirAdmin = {
+            Admin: (compartir && compartir.Admin) || [],
+            Admin2: (compartir && compartir.Admin2) || []
+        };
+        modulosCompartidos = (compartirAdmin[NUESTROS_ROLES.ADMIN] || []).length > 0;
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("appBar").style.display = "flex";
+        document.getElementById("btnHamburguesa").style.display = "flex";
+        document.getElementById("appBarNombre").textContent = s.nombre;
+        construirMenu(s.rol);
+        // Se vuelve al modulo donde estaba, y no siempre a inicio: recargar
+        // en mitad de una preventive no deberia tirar el trabajo.
+        var destino = s.modulo || "inicio";
+        try { navegar(destino); } catch (e) { navegar("inicio"); }
+        if (typeof notiIniciar === "function") notiIniciar();
+        iniciarRefrescoVivo();
+    };
+
+    // El mapa de compartidos se pide al servidor, pero ese endpoint no pasa
+    // por el limitador, asi que tampoco gasta intentos. Si falla, se abre la
+    // sesion igualmente: solo afecta a que se vean los modulos que otro
+    // admin haya compartido, y eso se corrige al volver a entrar.
+    var pedirCompartidos = function (cb) {
+        fetch(APPS_SCRIPT_URL + "?accion=estado_compartido")
+            .then(function (r) { return r.json(); })
+            .then(function (r) { cb(r && r.status === "ok" ? r : null); })
+            .catch(function () { cb(null); });
+    };
+
+    // Si la persona tiene PIN pero no lo tenemos guardado (pestana abierta
+    // desde antes de este cambio, o storage vaciado a medias), se le pide
+    // antes de abrir el panel: entrar con la sesion a medias dejaria la
+    // asistencia sin poder marcar.
+    if (s.cedula) {
+        fetch(APPS_SCRIPT_URL + "?accion=pin_necesario&cedula=" + encodeURIComponent(s.cedula))
+            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                if (r && r.status === "ok" && r.pinRequerido === true && !pinEnMemoria) {
+                    pedirPinAlRestaurar(s, restaurar);
+                    return;
+                }
+                pedirCompartidos(restaurar);
+            })
+            .catch(function () { restaurar(null); });
+    } else {
+        pedirCompartidos(restaurar);
+    }
+    return true;
+}
+
+// El PIN se pide con un dialogo, no con el formulario de login: la sesion ya
+// esta puesta, solo falta el dato para poder marcar asistencia.
+function pedirPinAlRestaurar(s, alTerminar) {
+    var pin = window.prompt("Tu cedula tiene PIN. Escribelo para poder marcar asistencia.\n\n(Se queda solo en esta pestana y se borra al cerrar.)", "");
+    if (pin === null) { cerrarSesion(); return; }
+    pin = String(pin).trim();
+    if (!pin) { cerrarSesion(); return; }
+    // Se comprueba antes de abrir el panel: si el PIN fuera incorrecto, la
+    // sesion guardada estaria mal y mejor no fingir que entro.
+    fetch(APPS_SCRIPT_URL + "?accion=login&cedula=" + encodeURIComponent(s.cedula)
+        + "&pin=" + encodeURIComponent(pin) + "&deviceId=" + encodeURIComponent(getDeviceId()))
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+            if (r && r.status === "ok") {
+                pinEnMemoria = pin;
+                guardarSesion({ nombre: s.nombre, tipo: s.tipo, rol: s.rol, cedula: s.cedula, asistencia: s.asistencia, __pin: pin });
+                alTerminar();
+            } else if (r && r.status === "bloqueado") {
+                alert("Demasiados intentos. Espera un momento antes de volver a intentarlo.");
+                cerrarSesion();
+            } else {
+                alert("El PIN no es correcto.");
+                borrarSesion();
+                document.getElementById("loginSection").style.display = "block";
+            }
+        })
+        .catch(function () { alTerminar(); });
+}
+
 function cerrarSesion() {
     usuarioActual = null;
     pinEnMemoria = "";
@@ -1609,6 +1769,7 @@ function cerrarSesion() {
     // campo PIN a la vista, para que el siguiente que entre no lo herede.
     ocultarCampoPin();
     reiniciarConsultaPin();
+    borrarSesion();
     moduloActivo = "inicio";
     tecnicoNombre = "";
     empleadoNombre = "";

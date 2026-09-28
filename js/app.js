@@ -1727,21 +1727,36 @@ function restaurarSesion() {
         iniciarRefrescoVivo();
     };
 
-    // El mapa de compartidos se pide al servidor y, si no llega, se usa el
-    // que quedo guardado en la sesion. Perderlo en silencio seria peor que
-    // esperar: quien tiene modulos compartidos se quedaria sin verlos y no
-    // sabria por que.
+    // El mapa de compartidos ya NO bloquea la entrada. Antes se esperaba su
+    // respuesta para abrir el panel, y eso es un viaje de ida y vuelta a
+    // Google en cada recarga: con la pantalla vacia todo ese rato, que es lo
+    // que mas se nota al recargar. Ahora se abre al instante con el mapa que
+    // quedo guardado, que para eso se guardo, y la respuesta fresca solo
+    // actualiza el menu si trae algo que no estaba.
     //
     // Aqui NO se guarda la sesion a proposito. Todavia no se ha restaurado, asi
     // que pinEnMemoria sigue vacio y el guardado volvia a escribir el PIN
     // vacio, borrando el que si estaba en la sesion. Era el motivo de que el
     // PIN se perdiera y volviera a preguntar en cada refresco. El guardado lo
     // hace navegar(), que ya corre con el estado en su sitio.
-    var pedirCompartidos = function (cb) {
+    var pedirCompartidosEnSegundoPlano = function () {
         fetch(APPS_SCRIPT_URL + "?accion=estado_compartido")
             .then(function (r) { return r.json(); })
-            .then(function (r) { cb(r && r.status === "ok" ? r : null); })
-            .catch(function () { cb(null); });
+            .then(function (r) {
+                if (!r || r.status !== "ok") return;
+                var antes = JSON.stringify(compartirAdmin);
+                compartirAdmin = {
+                    Admin: r.Admin || [],
+                    Admin2: r.Admin2 || []
+                };
+                modulosCompartidos = (compartirAdmin[NUESTROS_ROLES.ADMIN] || []).length > 0;
+                // Si no cambio nada, no se toca el menu: reconstruirlo para
+                // dejar todo igual solo hace parpadear la pantalla.
+                if (JSON.stringify(compartirAdmin) === antes) return;
+                if (typeof reconstruirMenuAdmin === "function") reconstruirMenuAdmin();
+                if (typeof renderCompartirModulosUI === "function") renderCompartirModulosUI();
+            })
+            .catch(function () { /* sin conexion: se queda el mapa guardado */ });
     };
 
     // Si la sesion ya trae PIN, no se pregunta nada y se abre directo.
@@ -1754,20 +1769,33 @@ function restaurarSesion() {
     // intentos. Y el PIN escrito ahi tampoco se guardaba, asi que no habia
     // forma de que dejara de preguntar.
     if (s.pin) {
-        pedirCompartidos(restaurar);
+        // Camino normal: se abre YA, sin esperar al servidor. La sesion
+        // guardada trae el mapa de compartidos de la vez anterior, asi que el
+        // menu sale completo a la primera y solo se refresca si cambio algo.
+        restaurar(s.compartir || null);
+        pedirCompartidosEnSegundoPlano();
     } else if (s.cedula) {
+        // Camino raro: sesion vieja sin PIN guardado. Ahi si hay que preguntar
+        // al servidor si esa cedula lo necesita, porque no se sabe aun.
         fetch(APPS_SCRIPT_URL + "?accion=pin_necesario&cedula=" + encodeURIComponent(s.cedula))
             .then(function (r) { return r.json(); })
             .then(function (r) {
                 if (r && r.status === "ok" && r.pinRequerido === true) {
-                    pedirPinAlRestaurar(s, restaurar);
+                    // Al pedir el PIN, el mapa tambien se pide despues, ya sin
+                    // bloquear la entrada.
+                    pedirPinAlRestaurar(s, function () {
+                        restaurar();
+                        pedirCompartidosEnSegundoPlano();
+                    });
                     return;
                 }
-                pedirCompartidos(restaurar);
+                restaurar(null);
+                pedirCompartidosEnSegundoPlano();
             })
             .catch(function () { restaurar(null); });
     } else {
-        pedirCompartidos(restaurar);
+        restaurar(null);
+        pedirCompartidosEnSegundoPlano();
     }
     return true;
 }

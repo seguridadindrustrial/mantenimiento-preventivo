@@ -1,4 +1,4 @@
-﻿
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -9,7 +9,7 @@
 </head>
 <body>
     <header class="image">
-        <button type="button" id="btnHamburguesa" class="hamburger" onclick="toggleMenuPanel()" aria-label="Abrir menu">â˜°</button>
+        <button type="button" id="btnHamburguesa" class="hamburger" onclick="toggleMenuPanel()" aria-label="Abrir menu">☰</button>
         <img src="logo cc.soul.jpg" alt="Logo" width="50" height="50">
         <div class="image-textos">
             <h1>CCS.CATERING</h1>
@@ -17,12 +17,12 @@
         </div>
         <div id="appBar" class="app-bar" style="display:none;">
             <button type="button" id="appBarUser" class="app-bar-user" onclick="toggleUserMenu()" aria-label="Menu de usuario">
-                <span id="appBarNombre"></span> <span class="app-bar-caret">â–¾</span>
+                <span id="appBarNombre"></span> <span class="app-bar-caret">▾</span>
             </button>
             <div id="userMenu" class="user-menu">
                 <button type="button" class="user-menu-item" onclick="cerrarUserMenu(); navegar('perfil')">Perfil</button>
                 <button type="button" class="user-menu-item" id="userTemaItem" onclick="toggleTema()" aria-label="Cambiar color de la pagina">
-                    <span id="userTemaIcon">ðŸŒ™</span> <span id="userTemaLabel">Modo oscuro</span>
+                    <span id="userTemaIcon">🌙</span> <span id="userTemaLabel">Modo oscuro</span>
                 </button>
                 <button type="button" class="user-menu-item" onclick="cerrarUserMenu(); cerrarSesion()">Salir</button>
             </div>
@@ -106,7 +106,7 @@
 
                     <div class="form-group">
                         <label>Repuestos utilizados</label>
-                        <p class="hint">Â¿Se usaron repuestos?</p>
+                        <p class="hint">¿Se usaron repuestos?</p>
                         <div class="toggle-group">
                             <button type="button" class="toggle-btn" id="otroRepSi" data-value="Si" onclick="toggleOtroRepuestos(this)">Si</button>
                             <button type="button" class="toggle-btn" id="otroRepNo" data-value="No" onclick="toggleOtroRepuestos(this)">No</button>
@@ -116,12 +116,12 @@
                     <div class="form-group" id="otroRepuestosGroup" style="display:none;">
                         <label>Agregar repuestos</label>
                         <div id="otroRepuestosRows"></div>
-                        <button type="button" class="btn-secondary btn-add" onclick="agregarRepuestoRow('otroRepuestosRows')">ï¼‹ Agregar repuesto</button>
+                        <button type="button" class="btn-secondary btn-add" onclick="agregarRepuestoRow('otroRepuestosRows')">＋ Agregar repuesto</button>
                     </div>
 
                     <div class="form-group">
                         <label>Necesitaste apoyo</label>
-                        <p class="hint">Â¿Necesitaste apoyo de otro tecnico para este mantenimiento?</p>
+                        <p class="hint">¿Necesitaste apoyo de otro tecnico para este mantenimiento?</p>
                         <div class="toggle-group">
                             <button type="button" class="toggle-btn" id="otroAyudaSi" data-value="Si" onclick="toggleAyudaToggle(this, 'otroAyuda')">Si</button>
                             <button type="button" class="toggle-btn" id="otroAyudaNo" data-value="No" onclick="toggleAyudaToggle(this, 'otroAyuda')">No</button>
@@ -147,7 +147,7 @@
                 </div>
 
                 <div class="form-group" id="retrasoGroup" style="display:none;">
-                    <label for="retrasoMotivo">Este preventivo supero su limite de 7 dias. Â¿Por que no lo realizaste a tiempo?</label>
+                    <label for="retrasoMotivo">Este preventivo supero su limite de 7 dias. ¿Por que no lo realizaste a tiempo?</label>
                     <textarea id="retrasoMotivo" rows="3" placeholder="Explica el motivo del retraso..."></textarea>
                 </div>
 
@@ -166,7 +166,7 @@
             <div id="paso3" style="display:none;">
                 <div class="form-group">
                     <label>Repuestos</label>
-                    <p class="hint">Â¿Utilizaste repuestos o necesitas repuestos para este mantenimiento?</p>
+                    <p class="hint">¿Utilizaste repuestos o necesitas repuestos para este mantenimiento?</p>
                     <div class="toggle-group">
                         <button type="button" class="toggle-btn" id="repSi" data-value="Si" onclick="toggleRepuestosToggle(this)">Si</button>
                         <button type="button" class="toggle-btn" id="repNo" data-value="No" onclick="toggleRepuestosToggle(this)">No</button>
@@ -176,12 +176,12 @@
                 <div class="form-group" id="repuestosGroup" style="display:none;">
                     <label>Agregar repuestos</label>
                     <div id="repuestosRows"></div>
-                    <button type="button" class="btn-secondary btn-add" id="btnAgregarRepuesto" onclick="agregarRepuestoRow()">ï¼‹ Agregar repuesto</button>
+                    <button type="button" class="btn-secondary btn-add" id="btnAgregarRepuesto" onclick="agregarRepuestoRow()">＋ Agregar repuesto</button>
                 </div>
 
                 <div class="form-group">
                     <label>Necesitaste apoyo</label>
-                    <p class="hint">Â¿Necesitaste apoyo de otro tecnico para este mantenimiento?</p>
+                    <p class="hint">¿Necesitaste apoyo de otro tecnico para este mantenimiento?</p>
                     <div class="toggle-group">
                         <button type="button" class="toggle-btn" id="ayudaSi" data-value="Si" onclick="toggleAyudaToggle(this)">Si</button>
                         <button type="button" class="toggle-btn" id="ayudaNo" data-value="No" onclick="toggleAyudaToggle(this)">No</button>
@@ -259,7 +259,7 @@
             </div>
 
             <div class="form-group">
-                <label>Â¿El equipo presenta una averia?</label>
+                <label>¿El equipo presenta una averia?</label>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn" id="aAvSi" data-value="Si" onclick="toggleAveriaToggle(this)">Si</button>
                     <button type="button" class="toggle-btn" id="aAvNo" data-value="No" onclick="toggleAveriaToggle(this)">No</button>
@@ -302,7 +302,7 @@
             </div>
 
             <div class="form-group">
-                <label id="rPregunta">Â¿Se arreglo la averia?</label>
+                <label id="rPregunta">¿Se arreglo la averia?</label>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn" id="rSi" data-value="Si" onclick="toggleRealizado(this)">Si</button>
                     <button type="button" class="toggle-btn" id="rNo" data-value="No" onclick="toggleRealizado(this)">No</button>
@@ -317,7 +317,7 @@
 
             <div class="form-group">
                 <label>Repuestos utilizados</label>
-                <p class="hint">Â¿Se usaron repuestos para esta reparacion?</p>
+                <p class="hint">¿Se usaron repuestos para esta reparacion?</p>
                 <div class="toggle-group">
                     <button type="button" class="toggle-btn" id="rRepSi" data-value="Si" onclick="toggleRepuestosResolucion(this)">Si</button>
                     <button type="button" class="toggle-btn" id="rRepNo" data-value="No" onclick="toggleRepuestosResolucion(this)">No</button>
@@ -327,7 +327,7 @@
             <div class="form-group" id="rRepuestosGroup" style="display:none;">
                 <label>Agregar repuestos</label>
                 <div id="rRepuestosRows"></div>
-                <button type="button" class="btn-secondary btn-add" id="btnAgregarRepuestoResolucion" onclick="agregarRepuestoRow('rRepuestosRows')">ï¼‹ Agregar repuesto</button>
+                <button type="button" class="btn-secondary btn-add" id="btnAgregarRepuestoResolucion" onclick="agregarRepuestoRow('rRepuestosRows')">＋ Agregar repuesto</button>
             </div>
 
             <div class="form-group">
@@ -433,19 +433,19 @@
                 <h2 class="module-title">Mantenimiento</h2>
                 <div class="dashboard-cards" id="mantCards">
                     <button class="dash-card dash-card-mant" onclick="navtarMantCard('PREVENTIVO')">
-                        <div class="dash-card-icon">ðŸ”§</div>
+                        <div class="dash-card-icon">🔧</div>
                         <div class="dash-card-label">Preventivo</div>
                     </button>
                     <button class="dash-card dash-card-mant" onclick="navegarAForm('checkinForm','CORRECTIVO')">
-                        <div class="dash-card-icon">ðŸ› ï¸</div>
+                        <div class="dash-card-icon">🛠️</div>
                         <div class="dash-card-label">Correctivo</div>
                     </button>
                     <button class="dash-card dash-card-mant" onclick="navtarMantCard('OTRO')">
-                        <div class="dash-card-icon">âš™ï¸</div>
+                        <div class="dash-card-icon">⚙️</div>
                         <div class="dash-card-label">Orden de trabajo</div>
                     </button>
                     <button class="dash-card dash-card-mant" onclick="navegarAForm('checkinForm','SEMANERO')">
-                        <div class="dash-card-icon">ðŸ“‹</div>
+                        <div class="dash-card-icon">📋</div>
                         <div class="dash-card-label">Semanero</div>
                     </button>
                 </div>
@@ -559,7 +559,7 @@
             <section id="aseoSection" class="module-section" style="display:none;">
                 <h2 class="module-title">Aseo</h2>
                 <div class="lista-vacia">
-                    <div style="font-size:3rem;margin-bottom:8px;">ðŸ‘·</div>
+                    <div style="font-size:3rem;margin-bottom:8px;">👷</div>
                     <p>Modulo en construccion.</p>
                 </div>
             </section>
@@ -567,27 +567,27 @@
             <section id="itSection" class="module-section" style="display:none;">
                 <h2 class="module-title">IT</h2>
                 <div class="lista-vacia">
-                    <div style="font-size:3rem;margin-bottom:8px;">ðŸ’»</div>
+                    <div style="font-size:3rem;margin-bottom:8px;">💻</div>
                     <p>Modulo en construccion.</p>
-                    <div style="font-size:3rem;margin-top:8px;">ðŸ‘·</div>
+                    <div style="font-size:3rem;margin-top:8px;">👷</div>
                 </div>
             </section>
 
             <section id="documentosSection" class="module-section" style="display:none;">
                 <h2 class="module-title">Documentos</h2>
                 <div class="lista-vacia">
-                    <div style="font-size:3rem;margin-bottom:8px;">ðŸ“„</div>
+                    <div style="font-size:3rem;margin-bottom:8px;">📄</div>
                     <p>Modulo en construccion.</p>
-                    <div style="font-size:3rem;margin-top:8px;">ðŸ‘·</div>
+                    <div style="font-size:3rem;margin-top:8px;">👷</div>
                 </div>
             </section>
 
             <section id="cuentasSection" class="module-section" style="display:none;">
                 <h2 class="module-title">Cuentas</h2>
                 <div class="lista-vacia">
-                    <div style="font-size:3rem;margin-bottom:8px;">ðŸ’°</div>
+                    <div style="font-size:3rem;margin-bottom:8px;">💰</div>
                     <p>Modulo en construccion.</p>
-                    <div style="font-size:3rem;margin-top:8px;">ðŸ‘·</div>
+                    <div style="font-size:3rem;margin-top:8px;">👷</div>
                 </div>
             </section>
 

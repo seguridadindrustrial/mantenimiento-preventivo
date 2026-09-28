@@ -1702,7 +1702,11 @@ function restaurarSesion() {
             cedula: s.cedula,
             asistencia: s.asistencia
         };
-        pinEnMemoria = s.pin || "";
+        // El PIN puede venir ya escrito desde pedirPinAlRestaurar. Antes se
+        // pisaba siempre con el de la sesion guardada, y como ese era el
+        // antiguo (vacio), el PIN recien escrito se perdia: se volvia a
+        // guardar vacio y el siguiente refresco volvia a preguntar.
+        pinEnMemoria = pinEnMemoria || s.pin || "";
         tecnicoNombre = s.nombre;
         empleadoNombre = s.nombre;
         compartirAdmin = {
@@ -1723,32 +1727,39 @@ function restaurarSesion() {
         iniciarRefrescoVivo();
     };
 
-    // Si la peticion del mapa falla se usa el que quedo guardado en la sesion.
-    // Perderlo en silencio seria peor que esperar: quien tiene modulos
-    // compartidos se quedaria sin verlos y no sabria por que.
+    // El mapa de compartidos se pide al servidor y, si no llega, se usa el
+    // que quedo guardado en la sesion. Perderlo en silencio seria peor que
+    // esperar: quien tiene modulos compartidos se quedaria sin verlos y no
+    // sabria por que.
+    //
+    // Aqui NO se guarda la sesion a proposito. Todavia no se ha restaurado, asi
+    // que pinEnMemoria sigue vacio y el guardado volvia a escribir el PIN
+    // vacio, borrando el que si estaba en la sesion. Era el motivo de que el
+    // PIN se perdiera y volviera a preguntar en cada refresco. El guardado lo
+    // hace navegar(), que ya corre con el estado en su sitio.
     var pedirCompartidos = function (cb) {
         fetch(APPS_SCRIPT_URL + "?accion=estado_compartido")
             .then(function (r) { return r.json(); })
-            .then(function (r) {
-                var mapa = (r && r.status === "ok") ? r : null;
-                if (mapa) guardarSesion({
-                    nombre: s.nombre, tipo: s.tipo, rol: s.rol, cedula: s.cedula,
-                    asistencia: s.asistencia, __pin: pinEnMemoria
-                });
-                cb(mapa);
-            })
+            .then(function (r) { cb(r && r.status === "ok" ? r : null); })
             .catch(function () { cb(null); });
     };
 
-    // Si la persona tiene PIN pero no lo tenemos guardado (pestana abierta
-    // desde antes de este cambio, o storage vaciado a medias), se le pide
-    // antes de abrir el panel: entrar con la sesion a medias dejaria la
-    // asistencia sin poder marcar.
-    if (s.cedula) {
+    // Si la sesion ya trae PIN, no se pregunta nada y se abre directo.
+    //
+    // Aqui estaba el bug que hacia que el PIN se pidiera en cada refresco: la
+    // condicion miraba pinEnMemoria en vez de s.pin. Pero pinEnMemoria todavia
+    // valia "" en ese momento, porque solo se llena DENTRO de restaurar, que es
+    // justo lo que corre despues. O sea que la pregunta era siempre cierta y
+    // el dialogo salia en cada recarga, con su llamada a accion=login y sus
+    // intentos. Y el PIN escrito ahi tampoco se guardaba, asi que no habia
+    // forma de que dejara de preguntar.
+    if (s.pin) {
+        pedirCompartidos(restaurar);
+    } else if (s.cedula) {
         fetch(APPS_SCRIPT_URL + "?accion=pin_necesario&cedula=" + encodeURIComponent(s.cedula))
             .then(function (r) { return r.json(); })
             .then(function (r) {
-                if (r && r.status === "ok" && r.pinRequerido === true && !pinEnMemoria) {
+                if (r && r.status === "ok" && r.pinRequerido === true) {
                     pedirPinAlRestaurar(s, restaurar);
                     return;
                 }

@@ -249,7 +249,11 @@ function etiquetaModuloAdmin(id) {
 
 function modulosAdminPara(rol, nombre) {
     if (rol === NUESTROS_ROLES.ADMIN) {
-        var mios = modulosAdminCompleto(NUESTROS_ROLES.ADMIN, nombre);
+        // El Admin 1 no se activa los opcionales por su cuenta: solo los ve
+        // cuando el Admin 2 los comparte. Por eso aqui se usa la lista base
+        // y no modulosAdminCompleto(), que si aplicaba lo guardado en el
+        // navegador de cada equipo.
+        var mios = (MODULOS_POR_ROL[NUESTROS_ROLES.ADMIN] || []).slice();
         var idsMios = {};
         mios.forEach(function (m) { idsMios[m.id] = true; });
         (compartirAdmin[NUESTROS_ROLES.ADMIN2] || []).forEach(function (id) {
@@ -264,7 +268,7 @@ function modulosAdminPara(rol, nombre) {
     var idsBase = {};
     base.forEach(function (m) { idsBase[m.id] = true; });
     var mapaAdmin = {};
-    modulosAdminCompleto(NUESTROS_ROLES.ADMIN, nombre).forEach(function (m) { mapaAdmin[m.id] = m; });
+    (MODULOS_POR_ROL[NUESTROS_ROLES.ADMIN] || []).forEach(function (m) { mapaAdmin[m.id] = m; });
     (compartirAdmin[NUESTROS_ROLES.ADMIN] || []).forEach(function (id) {
         if (!idsBase[id] && mapaAdmin[id]) {
             base.push(mapaAdmin[id]);
@@ -276,6 +280,9 @@ function modulosAdminPara(rol, nombre) {
 
 function toggleModuloAdmin(id) {
     if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    // Solo el Admin 2 administra los modulos opcionales. El Admin 1 los
+    // recibe unicamente cuando el Admin 2 los comparte.
+    if (usuarioActual.rol !== NUESTROS_ROLES.ADMIN2) return;
     if (!MODULOS_OPCIONALES_ADMIN.some(function (o) { return o.id === id; })) return;
     var nombre = usuarioActual.nombre;
     var hab = modulosAdminHabilitados(usuarioActual.rol, nombre);
@@ -352,7 +359,13 @@ const MODULOS_POR_ROL = {
         { id: "it", label: "IT" },
         { id: "aseo", label: "Aseo" },
         { id: "documentos", label: "Documentos" },
-        { id: "cuentas", label: "Cuentas" }
+        { id: "cuentas", label: "Cuentas" },
+        { id: "mantenimiento", label: "Mantenimiento" },
+        { id: "ordenes", label: "Orden de trabajo" },
+        { id: "repuestos", label: "Repuestos" },
+        { id: "empleados", label: "Empleados" },
+        { id: "asistencia", label: "Asistencia" },
+        { id: "historial", label: "Historial" }
     ],
     [NUESTROS_ROLES.TECNICO]: [
         { id: "inicio", label: "Inicio" },
@@ -1589,6 +1602,12 @@ function cerrarSesion() {
     var errorEl = document.getElementById("loginError");
     errorEl.style.display = "none";
     if (typeof notiDetener === "function") notiDetener();
+    // El boton Volver vive fuera de panelContent, asi que ocultarTodoPanel no
+    // lo toca: sin esto se queda visible despues de salir, sobre el login.
+    actualizarBotonAtras();
+    // El refresco cada 15s seguia corriendo con la sesion del usuario que
+    // salio. Se detiene aqui y se reinicia en iniciarRefrescoVivo().
+    if (typeof detenerRefrescoVivo === "function") detenerRefrescoVivo();
 }
 
 function toggleMenuPanel() {
@@ -2422,10 +2441,16 @@ function pintarHistorial() {
     cont.appendChild(t);
 }
 
+// En el perfil los dos administradores se muestran igual: "Admin" y "Admin2"
+// son detalles internos y al usuario no le aportan nada.
+function etiquetaRolPerfil(rol) {
+    return esRolAdmin(rol) ? "Administrador" : rol;
+}
+
 function renderPerfil() {
     if (!usuarioActual) return;
     document.getElementById("perfilNombre").value = usuarioActual.nombre;
-    document.getElementById("perfilRol").value = usuarioActual.rol;
+    document.getElementById("perfilRol").value = etiquetaRolPerfil(usuarioActual.rol);
     document.getElementById("perfilWhatsapp").value = "";
     document.getElementById("perfilCorreo").value = "";
     document.getElementById("perfilMsg").innerHTML = "";

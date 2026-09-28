@@ -3465,7 +3465,7 @@ function guardarEdicionAveria(numero) {
     postJSONRespuesta({
         tipo: "editar_averia",
         numero: numero,
-        empleado: usuarioActual ? usuarioActual.nombre : "",
+        empleado: limpiarNombre(usuarioActual ? usuarioActual.nombre : ""),
         sede: cambios.sede,
         zona: cambios.zona,
         equipo: cambios.equipo,
@@ -3493,7 +3493,7 @@ function guardarEdicionAveria(numero) {
 
 function borrarAveriaModulo(numero) {
     if (!confirm("Borrar la averia " + numero + "?\n\nTambien se eliminaran sus fotos de Drive. Esto no se puede deshacer.")) return;
-    postJSONRespuesta({ tipo: "borrar_averia", numero: numero, empleado: usuarioActual ? usuarioActual.nombre : "" })
+    postJSONRespuesta({ tipo: "borrar_averia", numero: numero, empleado: limpiarNombre(usuarioActual ? usuarioActual.nombre : "") })
         .then(function (r) {
             if (!r || r.status === "error") { alert((r && r.message) || "No se pudo borrar la averia."); return; }
             return esperarCambioAveria(numero, function (a) { return !a; }).then(function (a) {

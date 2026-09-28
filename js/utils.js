@@ -320,3 +320,17 @@ function guardarImagenEnviada(numero, huella) {
 function averiaCerrada(valor) {
     return valor === "Si" || valor === "Falsa averia";
 }
+
+// Quita de un nombre los caracteres basura que a veces quedan pegados
+// ("alberto blanco a~3/4" -> "ALBERTO BLANCO") y lo pasa a mayusculas.
+// Se usa antes de mandar el nombre al servidor para que un dato guardado
+// con textos rotos no impida editar o borrar averias.
+function limpiarNombre(nombre) {
+    return String(nombre || "")
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^A-Z ]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}

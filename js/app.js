@@ -141,14 +141,79 @@ function mostrarBloqueoLogin(bloqueadoHastaUnix) {
     info.innerHTML = "Demasiados intentos fallidos.<br>Dispositivo bloqueado temporalmente.<span class='countdown'>" + mins + "m " + (secs < 10 ? "0" : "") + secs + "s</span>";
 }
 
-// El campo PIN ya esta visible desde el inicio, junto a la cedula: se escriben
-// los dos de una vez y no hay un paso extra. Esta funcion queda como red de
-// seguridad por si algo lo oculta, y para poder poner el foco ahi.
-function mostrarCampoPin() {
+// El campo PIN nace oculto y solo se le muestra a quien tiene PIN asignado.
+// El foco es opcional: si se descubre mientras la persona todavia esta
+// escribiendo la cedula, robarle el cursor seria peor que esperar.
+function mostrarCampoPin(enfocar) {
+    if (isLoginBlocked()) return;
     var grupo = document.getElementById("loginPinGroup");
     if (grupo) grupo.style.display = "block";
     var input = document.getElementById("pinTecnico");
-    if (input) input.focus();
+    if (!input) return;
+    input.disabled = false;
+    if (enfocar !== false) input.focus();
+}
+
+// Al contrario: esconder el campo y olvidarse de que se escribio algo.
+function ocultarCampoPin() {
+    var grupo = document.getElementById("loginPinGroup");
+    if (grupo) grupo.style.display = "none";
+    var campo = document.getElementById("pinTecnico");
+    if (campo) { campo.value = ""; campo.disabled = true; }
+}
+
+// Decide si al campo PIN de esta cedula hay que mostrarlo, preguntando al
+// servidor ANTES de que le den Ingresar. La pregunta no cuenta como intento,
+// asi que nadie pierde uno de sus cinco por un simple teclear.
+var pinConsultaTimer = null;
+var pinUltimaCedula = "";
+
+function consultarPinNecesario(enfocar) {
+    var input = document.getElementById("codigoTecnico");
+    if (!input || isLoginBlocked()) return;
+    var ced = input.value.trim();
+
+    // Solo se pregunta por cedulas. Los codigos de averia y los nombres no
+    // llevan PIN, y preguntar en cada tecla seria hacer trafico de sobra.
+    if (!/^\d{6,}$/.test(ced)) { pinUltimaCedula = ""; return; }
+    if (ced === pinUltimaCedula) {
+        // Ya se sabe, pero si el campo quedo escondido se vuelve a mostrar.
+        if (pinUltimaCedula === ced) {
+            var grupo = document.getElementById("loginPinGroup");
+            if (grupo && grupo.style.display === "none") mostrarCampoPin(enfocar);
+        }
+        return;
+    }
+    pinUltimaCedula = ced;
+
+    var preguntar = function (c, esReintento) {
+        fetch(APPS_SCRIPT_URL + "?accion=pin_necesario&cedula=" + encodeURIComponent(c))
+            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                // Igual que en el login: hay quien teclea un 2 de mas al final.
+                if (r && r.status === "not_found" && !esReintento && /2$/.test(ced)) {
+                    return preguntar(ced.slice(0, -1), true);
+                }
+                if (r && r.status === "ok") {
+                    if (r.pinRequerido === true) {
+                        mostrarCampoPin(enfocar);
+                    } else if (document.activeElement !== document.getElementById("pinTecnico")) {
+                        ocultarCampoPin();
+                    }
+                }
+                return r;
+            })
+            .catch(function () {
+                // Si la consulta falla no se avisa: al darle Ingresar, el login
+                // normal responde y ahi si se ve el mensaje real.
+            });
+    };
+    preguntar(ced, false);
+}
+
+function reiniciarConsultaPin() {
+    if (pinConsultaTimer) { clearTimeout(pinConsultaTimer); pinConsultaTimer = null; }
+    pinUltimaCedula = "";
 }
 
 function mostrarIntentosRestantes(restantes) {
@@ -514,6 +579,18 @@ function cargarRutinasDinamicas() {
     var pinCampo = document.getElementById("pinTecnico");
     if (pinCampo) pinCampo.addEventListener("keydown", function (e) {
         if (e.key === "Enter") loginTecnico();
+    });
+    // El campo PIN se muestra solo si esa cedula lo tiene, y se decide al
+    // terminar de escribirla, para que cuando le den Ingresar ya este ahi.
+    var cedCampo = document.getElementById("codigoTecnico");
+    cedCampo.addEventListener("blur", function () {
+        consultarPinNecesario(true);
+    });
+    cedCampo.addEventListener("input", function () {
+        if (pinConsultaTimer) clearTimeout(pinConsultaTimer);
+        pinConsultaTimer = setTimeout(function () {
+            consultarPinNecesario(false);
+        }, 400);
     });
     if (isLoginBlocked()) mostrarBloqueoLogin();
 
@@ -1528,10 +1605,10 @@ function empujarModuloHistorial(m) {
 function cerrarSesion() {
     usuarioActual = null;
     pinEnMemoria = "";
-    const pinSalida = document.getElementById("pinTecnico");
-    if (pinSalida) pinSalida.value = "";
-    const grupoPin = document.getElementById("loginPinGroup");
-    if (grupoPin) grupoPin.style.display = "none";
+    // El formulario vuelve a su estado de partida: sin PIN escrito y sin el
+    // campo PIN a la vista, para que el siguiente que entre no lo herede.
+    ocultarCampoPin();
+    reiniciarConsultaPin();
     moduloActivo = "inicio";
     tecnicoNombre = "";
     empleadoNombre = "";

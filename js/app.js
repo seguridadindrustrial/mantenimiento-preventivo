@@ -178,45 +178,11 @@ const MODULOS_OPCIONALES_ADMIN = [
     { id: "cuentas", label: "Cuentas", icono: "💰" }
 ];
 
-const MODULOS_ADMIN_EXTRA_KEY = "modulosAdminExtraV2";
-
-function claveModulosAdminExtra(nombre) {
-    return MODULOS_ADMIN_EXTRA_KEY + "_" + String(nombre || "").trim().toUpperCase();
-}
-
-function modulosAdminHabilitados(rol, nombre) {
-    var stored = null;
-    try {
-        var raw = localStorage.getItem(claveModulosAdminExtra(nombre));
-        if (raw) stored = JSON.parse(raw);
-    } catch (e) { stored = null; }
-    var out = {};
-    MODULOS_OPCIONALES_ADMIN.forEach(function (m) {
-        if (stored === null) out[m.id] = false;
-        else out[m.id] = stored.indexOf(m.id) !== -1;
-    });
-    return out;
-}
-
-function modulosAdminCompleto(rol, nombre) {
-    var base = MODULOS_POR_ROL[rol] || MODULOS_POR_ROL[NUESTROS_ROLES.USUARIO];
-    var baseIds = base.map(function (m) { return m.id; });
-    var hab = modulosAdminHabilitados(rol, nombre);
-    var final = base.filter(function (m) {
-        var opcional = MODULOS_OPCIONALES_ADMIN.some(function (o) { return o.id === m.id; });
-        return !opcional || hab[m.id];
-    });
-    var extras = MODULOS_OPCIONALES_ADMIN.filter(function (m) {
-        return hab[m.id] && baseIds.indexOf(m.id) === -1;
-    }).map(function (m) { return { id: m.id, label: m.label }; });
-    if (final.length && final[final.length - 1].id === "perfil") {
-        final = final.slice(0, final.length - 1).concat(extras, [final[final.length - 1]]);
-    } else {
-        final = final.concat(extras);
-    }
-    return final;
-}
-
+// Estos tres son de Loly (Admin 2) y no se activan por navegador: ella los
+// tiene siempre y decide cuales le deja ver a Alberto con el panel de
+// compartir. Antes el Admin 1 tenia unos chips propios en el menu que
+// guardaban la eleccion en el localStorage de cada equipo, asi que lo que
+// veia dependia del ordenador desde el que se conectara.
 function catalogoModulosAdmin() {
     var out = [], visto = {};
     [NUESTROS_ROLES.ADMIN, NUESTROS_ROLES.ADMIN2].forEach(function (rol) {
@@ -249,10 +215,8 @@ function etiquetaModuloAdmin(id) {
 
 function modulosAdminPara(rol, nombre) {
     if (rol === NUESTROS_ROLES.ADMIN) {
-        // El Admin 1 no se activa los opcionales por su cuenta: solo los ve
-        // cuando el Admin 2 los comparte. Por eso aqui se usa la lista base
-        // y no modulosAdminCompleto(), que si aplicaba lo guardado en el
-        // navegador de cada equipo.
+        // El Admin 1 no elige los opcionales: solo los ve cuando el Admin 2
+        // los comparte.
         var mios = (MODULOS_POR_ROL[NUESTROS_ROLES.ADMIN] || []).slice();
         var idsMios = {};
         mios.forEach(function (m) { idsMios[m.id] = true; });
@@ -276,21 +240,6 @@ function modulosAdminPara(rol, nombre) {
         }
     });
     return base;
-}
-
-function toggleModuloAdmin(id) {
-    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
-    // Solo el Admin 2 administra los modulos opcionales. El Admin 1 los
-    // recibe unicamente cuando el Admin 2 los comparte.
-    if (usuarioActual.rol !== NUESTROS_ROLES.ADMIN2) return;
-    if (!MODULOS_OPCIONALES_ADMIN.some(function (o) { return o.id === id; })) return;
-    var nombre = usuarioActual.nombre;
-    var hab = modulosAdminHabilitados(usuarioActual.rol, nombre);
-    hab[id] = !hab[id];
-    var lista = [];
-    MODULOS_OPCIONALES_ADMIN.forEach(function (m) { if (hab[m.id]) lista.push(m.id); });
-    localStorage.setItem(claveModulosAdminExtra(nombre), JSON.stringify(lista));
-    reconstruirMenuAdmin();
 }
 
 function reconstruirMenuAdmin() {
@@ -317,25 +266,6 @@ function reconstruirMenuAdmin() {
     botones.forEach(function (b) {
         b.classList.toggle("active", b.getAttribute("data-modulo") === moduloActivo);
     });
-}
-
-function crearSelectorModulosAdmin(rol, nombre) {
-    var cont = document.createElement("div");
-    cont.className = "menu-modulos-extra";
-    var titulo = document.createElement("div");
-    titulo.className = "menu-modulos-extra-titulo";
-    titulo.textContent = "Modulos opcionales";
-    cont.appendChild(titulo);
-    var hab = modulosAdminHabilitados(rol, nombre);
-    MODULOS_OPCIONALES_ADMIN.forEach(function (m) {
-        var chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "menu-modulo-chip" + (hab[m.id] ? " activo" : "");
-        chip.textContent = m.icono + " " + m.label;
-        chip.addEventListener("click", function () { toggleModuloAdmin(m.id); });
-        cont.appendChild(chip);
-    });
-    return cont;
 }
 
 const MODULOS_POR_ROL = {
@@ -1159,8 +1089,10 @@ function construirMenu(rol) {
         btn.setAttribute("data-modulo", m.id);
         btn.addEventListener("click", function () { navegar(m.id); });
         menuContainer.appendChild(btn);
-    });
-    if (rol === NUESTROS_ROLES.ADMIN) menuContainer.appendChild(crearSelectorModulosAdmin(rol, nombre));
+  });
+  // Ningun administrador elige modulos desde el menu. Alberto recibe los
+  // opcionales de Loly por el panel de compartir, no con chips propios.
+
     cerrarMenuPanel();
 }
 

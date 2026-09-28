@@ -3437,22 +3437,40 @@ function editarAveriaModulo(numero) {
 }
 
 function guardarEdicionAveria(numero) {
-    postJSONRespuesta({
-        tipo: "editar_averia",
-        numero: numero,
-        empleado: usuarioActual ? usuarioActual.nombre : "",
+    var cambios = {
         sede: document.getElementById("edSede").value.trim(),
         zona: document.getElementById("edZona").value.trim(),
         equipo: document.getElementById("edEquipo").value.trim(),
         estado: document.getElementById("edEstado").value,
         asignado: document.getElementById("edAsignado").value.trim(),
         descripcion: document.getElementById("edDescripcion").value.trim()
+    };
+    postJSONRespuesta({
+        tipo: "editar_averia",
+        numero: numero,
+        empleado: usuarioActual ? usuarioActual.nombre : "",
+        sede: cambios.sede,
+        zona: cambios.zona,
+        equipo: cambios.equipo,
+        estado: cambios.estado,
+        asignado: cambios.asignado,
+        descripcion: cambios.descripcion
     }).then(function (r) {
-        if (!r || r.status !== "ok") { alert((r && r.message) || "No se pudo editar la averia."); return; }
-        borrarCacheV("averias");
-        alert("Averia " + numero + " actualizada.");
-        if (typeof notiRefrescar === "function") notiRefrescar(true);
-        renderAsignarAverias();
+        if (!r || r.status === "error") { alert((r && r.message) || "No se pudo editar la averia."); return; }
+        return fetchJSON("averias", {}, { cacheMs: 0 }).then(function (res) {
+            var lista = Array.isArray(res) ? res : (res && res.averias) || [];
+            var a = lista.filter(function (x) { return x.numero === numero; })[0];
+            if (!a) { alert("La averia " + numero + " ya no existe."); renderAsignarAverias(); return; }
+            if (String(a.descripcion || "") !== cambios.descripcion || String(a.zona || "") !== cambios.zona) {
+                alert("El servidor no guardo los cambios.\n\nTu usuario es \"" + (usuarioActual ? usuarioActual.nombre : "") +
+                    "\". Solo pueden editar averias los administradores (ALBERTO BLANCO o LOLY GARCIA, tal como estan escritos en el sistema).");
+                return;
+            }
+            borrarCacheV("averias");
+            alert("Averia " + numero + " actualizada.");
+            if (typeof notiRefrescar === "function") notiRefrescar(true);
+            renderAsignarAverias();
+        });
     });
 }
 
@@ -3460,11 +3478,20 @@ function borrarAveriaModulo(numero) {
     if (!confirm("Borrar la averia " + numero + "?\n\nTambien se eliminaran sus fotos de Drive. Esto no se puede deshacer.")) return;
     postJSONRespuesta({ tipo: "borrar_averia", numero: numero, empleado: usuarioActual ? usuarioActual.nombre : "" })
         .then(function (r) {
-            if (!r || r.status !== "ok") { alert((r && r.message) || "No se pudo borrar la averia."); return; }
-            borrarCacheV("averias");
-            alert("Averia " + numero + " borrada.");
-            if (typeof notiRefrescar === "function") notiRefrescar(true);
-            renderAsignarAverias();
+            if (!r || r.status === "error") { alert((r && r.message) || "No se pudo borrar la averia."); return; }
+            return fetchJSON("averias", {}, { cacheMs: 0 }).then(function (res) {
+                var lista = Array.isArray(res) ? res : (res && res.averias) || [];
+                var sigue = lista.filter(function (x) { return x.numero === numero; }).length > 0;
+                if (sigue) {
+                    alert("El servidor no boro la averia.\n\nTu usuario es \"" + (usuarioActual ? usuarioActual.nombre : "") +
+                        "\". Solo pueden borrar averias los administradores (ALBERTO BLANCO o LOLY GARCIA, tal como estan escritos en el sistema).");
+                    return;
+                }
+                borrarCacheV("averias");
+                alert("Averia " + numero + " borrada.");
+                if (typeof notiRefrescar === "function") notiRefrescar(true);
+                renderAsignarAverias();
+            });
         });
 }
 

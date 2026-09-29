@@ -535,22 +535,108 @@ function pintarOrdenesEstado(lista) {
     }
     l.className = "";
     l.innerHTML = "";
-    filtradas.forEach(function (o) {
-        var card = document.createElement("div");
-        card.className = "card";
-        card.style.cssText = "margin-bottom:10px;padding:12px;border-left:4px solid " + colorDeOrden(o) + ";";
-        card.innerHTML =
-            '<div style="font-weight:700;color:' + colorDeOrden(o) + ';">' + escaparHTML(o.numero) + ' <span class="badge-frecuencia" style="background:#fff3e0;color:#e65100;">' + escaparHTML(o.especialidad || "General") + '</span></div>' +
-            '<div style="font-size:0.85rem;color:#333;margin-top:4px;">Equipo: <b>' + escaparHTML(o.equipo) + '</b></div>' +
-            '<div style="font-size:0.82rem;color:#555;">Sede: ' + escaparHTML(o.sede) + (o.zona ? " | Zona: " + escaparHTML(o.zona) : "") + '</div>' +
-            '<div style="font-size:0.82rem;color:#555;">Tecnico: <b>' + (o.tecnico ? escaparHTML(o.tecnico) : "Sin asignar") + '</b> | Estado: <b>' + escaparHTML(o.estado || "Pendiente") + '</b></div>' +
-            (o.asignado ? '<div style="font-size:0.78rem;color:#888;margin-top:2px;">Asignado: ' + escaparHTML(o.asignado) + '</div>' : '') +
-            (o.descripcion ? '<div style="font-size:0.82rem;color:#777;margin-top:4px;">' + escaparHTML(o.descripcion) + '</div>' : '') +
+      filtradas.forEach(function (o) {
+          var card = document.createElement("div");
+          card.className = "card";
+          card.style.cssText = "margin-bottom:10px;padding:12px;border-left:4px solid " + colorDeOrden(o) + ";";
+          // Reasignar es solo del administrador, y solo mientras la orden siga
+          // abierta: una vez cerrada, quien la hizo es parte del historial.
+          var puedeReasignar = esRolAdmin(usuarioActual.rol) &&
+              String(o.estado || "Pendiente") !== "Realizada" &&
+              String(o.estado || "Pendiente") !== "Falsa orden";
+          card.innerHTML =
+              '<div style="font-weight:700;color:' + colorDeOrden(o) + ';">' + escaparHTML(o.numero) + ' <span class="badge-frecuencia" style="background:#fff3e0;color:#e65100;">' + escaparHTML(o.especialidad || "General") + '</span></div>' +
+              '<div style="font-size:0.85rem;color:#333;margin-top:4px;">Equipo: <b>' + escaparHTML(o.equipo) + '</b></div>' +
+              '<div style="font-size:0.82rem;color:#555;">Sede: ' + escaparHTML(o.sede) + (o.zona ? " | Zona: " + escaparHTML(o.zona) : "") + '</div>' +
+              '<div style="font-size:0.82rem;color:#555;">Tecnico: <b>' + (o.tecnico ? escaparHTML(o.tecnico) : "Sin asignar") + '</b> | Estado: <b>' + escaparHTML(o.estado || "Pendiente") + '</b></div>' +
+              (o.asignado ? '<div style="font-size:0.78rem;color:#888;margin-top:2px;">Asignado: ' + escaparHTML(o.asignado) + '</div>' : '') +
+              (puedeReasignar ? '<div style="margin-top:8px;"><button type="button" class="btn-secondary" style="font-size:0.8rem;padding:7px 12px;" onclick="reasignarOrden(\'' + escaparHTML(o.numero) + '\',\'' + escaparHTML(o.tecnico || "") + '\')">Reasignar</button></div>' : '') +
+              (o.descripcion ? '<div style="font-size:0.82rem;color:#777;margin-top:4px;">' + escaparHTML(o.descripcion) + '</div>' : '') +
             (o.resolucion ? '<div style="font-size:0.82rem;color:#2e7d32;margin-top:4px;">Resolucion: ' + escaparHTML(o.resolucion) + '</div>' : '') +
             (o.resFecha ? '<div style="font-size:0.78rem;color:#888;margin-top:2px;">Resuelta: ' + escaparHTML(o.resFecha) + ' ' + escaparHTML(o.resHora) + '</div>' : '') +
             ((o.fotos && o.fotos.length) ? '<div style="margin-top:6px;">' + o.fotos.map(function (f) {
                 return '<a href="https://drive.google.com/file/d/' + f.id + '/view" target="_blank"><img src="https://drive.google.com/thumbnail?id=' + f.id + '&sz=w200" style="width:64px;height:64px;object-fit:cover;border-radius:6px;margin-right:4px;"></a>';
             }).join("") + '</div>' : '');
         l.appendChild(card);
+    });
+}
+
+// ---- Reasignar una orden (solo administrador) -------------------------------
+// Cuando una orden se crea con el tecnico equivocado, o ese tecnico se va,
+// no habia forma de moverla: tocaba entrar a la hoja de calculo a mano y
+// eso se le olvidaba a alguien. Aqui el administrador la mueve desde la lista.
+function reasignarOrden(numero, tecnicoActual) {
+    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    var wrap = document.getElementById("ordenReasignarWrap");
+    if (!wrap) return;
+    wrap.innerHTML =
+        '<div class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;">' +
+        '<div style="background:#fff;border-radius:10px;padding:18px;max-width:420px;width:100%;max-height:90vh;overflow:auto;">' +
+        '<div class="module-title" style="font-size:1rem;margin-bottom:8px;">Reasignar orden ' + escaparHTML(numero) + '</div>' +
+        '<div style="font-size:0.85rem;color:#555;margin-bottom:12px;">Ahora mismo: <b>' + escaparHTML(tecnicoActual || "Sin asignar") + '</b></div>' +
+        '<select id="oReasignarSel" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;"><option value="">Cargando tecnicos...</option></select>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
+        '<button type="button" class="btn-secondary" onclick="cerrarReasignarOrden()">Cancelar</button>' +
+        '<button type="button" class="btn-primary" id="oReasignarIr">Reasignar</button>' +
+        '</div></div></div>';
+    wrap.style.display = "block";
+    fetchJSON("personal", {}, { cacheMs: 120000 })
+        .then(function (personal) {
+            var nombres = (personal || []).filter(function (p) { return p.tipo === "Tecnico"; })
+                .map(function (p) { return p.nombre; });
+            populateSelect("oReasignarSel", nombres);
+            var sel = document.getElementById("oReasignarSel");
+            if (sel && tecnicoActual && nombres.indexOf(tecnicoActual) !== -1) sel.value = tecnicoActual;
+        })
+        .catch(function () {
+            var sel = document.getElementById("oReasignarSel");
+            if (sel) sel.innerHTML = '<option value="">No se pudieron cargar los tecnicos</option>';
+        });
+    var ir = document.getElementById("oReasignarIr");
+    if (ir) ir.onclick = function () { confirmarReasignarOrden(numero); };
+}
+
+function cerrarReasignarOrden() {
+    var wrap = document.getElementById("ordenReasignarWrap");
+    if (!wrap) return;
+    wrap.style.display = "none";
+    wrap.innerHTML = "";
+}
+
+function confirmarReasignarOrden(numero) {
+    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    var sel = document.getElementById("oReasignarSel");
+    var nuevo = sel ? String(sel.value || "").trim() : "";
+    if (!nuevo) { alert("Elige un tecnico de la lista."); return; }
+    var previa = (ordenesCache || []).filter(function (o) { return String(o.numero) === String(numero); })[0];
+    var anterior = previa ? String(previa.tecnico || "").trim() : "";
+    if (anterior === nuevo) {
+        alert("Esa orden ya esta asignada a " + nuevo + ".");
+        cerrarReasignarOrden();
+        return;
+    }
+    var btn = document.getElementById("oReasignarIr");
+    if (btn) { btn.disabled = true; btn.textContent = "Asignando..."; }
+    postJSON({
+        tipo: "reasignar_orden",
+        numero: numero,
+        tecnico: nuevo,
+        registradoPor: usuarioActual.nombre
+    }).then(function () {
+        // El POST va en no-cors, asi que no se puede leer la respuesta. Se
+        // vuelve a pedir la lista y se mira lo que quedo de verdad, en vez de
+        // dar por buena la asignacion sin comprobar nada.
+        return fetchJSON("ordenes_trabajo", {}, { refresh: true });
+    }).then(function (d) {
+        ordenesCache = (d && d.ordenes) || [];
+        var ahora = (ordenesCache || []).filter(function (o) { return String(o.numero) === String(numero); })[0];
+        cerrarReasignarOrden();
+        pintarOrdenesEstado(ordenesCache);
+        alert(ahora && String(ahora.tecnico || "").trim() === nuevo
+            ? "Orden " + numero + " ahora es de " + nuevo + "."
+            : "No se pudo reasignar la orden " + numero + ". Revisa la conexion.");
+    }).catch(function () {
+        if (btn) { btn.disabled = false; btn.textContent = "Reasignar"; }
+        alert("No se pudo reasignar. Revisa la conexion.");
     });
 }

@@ -569,7 +569,6 @@ function cargarRutinasDinamicas() {
     aplicarTema(localStorage.getItem("tema") || "claro");
     inicializarDatosEquipos();
     cargarRutinasDinamicas();
-    cargarAverias();
     var panelContent = document.getElementById("panelContent");
     if (panelContent) panelContent.style.display = "none";
     document.getElementById("btnLogin").addEventListener("click", loginTecnico);
@@ -597,6 +596,12 @@ function cargarRutinasDinamicas() {
     // Recargar ya no cierra la sesion. Va al final a proposito: primero se
     // registran los eventos, por si al restaurar se hace falta el boton.
     if (!isLoginBlocked()) restaurarSesion();
+
+    // Las averias ya no se descargan en la pantalla de login, que es donde se
+    // perdia ese tiempo: ahi no las usa nadie y era la lista entera bajandose
+    // antes de que el tecnico escribiera su cedula. Ahora solo se piden si hay
+    // sesion; si no, cada vista que las necesite las carga por su cuenta.
+    if (usuarioActual) cargarAverias();
 
     document.getElementById("btnPaso3").addEventListener("click", function () {
         if (esTaller && esSemanarioRuices) {
@@ -1993,7 +1998,7 @@ function renderTendencia(container, titulo, actual, anterior, modulo) {
     container.appendChild(wrap);
 }
 
-function renderInicio() {
+function renderInicio(fresco) {
     if (!usuarioActual) return;
     var statsEl = document.getElementById("dashboardStats");
     var chartsEl = document.getElementById("dashboardCharts");
@@ -2005,12 +2010,16 @@ function renderInicio() {
         usuarioActual.rol === NUESTROS_ROLES.ADMIN ||
         (usuarioActual.rol === NUESTROS_ROLES.ADMIN2 && (compartirAdmin[NUESTROS_ROLES.ADMIN] || []).indexOf("mantenimiento") !== -1);
     if (verTareasInicio) {
-        cargarTareasInicio();
+        cargarTareasInicio(fresco);
     } else {
         cargarAccesosInicio(usuarioActual.rol, usuarioActual.nombre);
     }
 
-    fetchJSON("dashboard", { nombre: usuarioActual.nombre, rol: usuarioActual.rol })
+    // "fresco" solo lo manda el refresco automatico. Entrando al panel o
+    // volviendo atras se usa la cache, que por eso existe: volver a Inicio
+    // tiene que ser inmediato, no una espera.
+    fetchJSON("dashboard", { nombre: usuarioActual.nombre, rol: usuarioActual.rol },
+        fresco ? { refresh: true } : {})
         .then(function (d) {
             if (!d) throw new Error("Sin datos");
             var averias = d.averias || {};
@@ -2059,7 +2068,7 @@ function renderInicio() {
         });
 }
 
-function cargarTareasInicio() {
+function cargarTareasInicio(fresco) {
     var cont = document.getElementById("tareasInicio");
     if (!cont || !usuarioActual) return;
     var esAdmin = esRolAdmin(usuarioActual.rol);
@@ -2070,10 +2079,16 @@ function cargarTareasInicio() {
     var errores = 0;
     var total = 3;
     var resultado = { tareas: [], ordenes: [] };
-    var tareasP = fetchJSON("tareas_semanales", { nombre: esAdmin ? "" : tecnicoNombre, pendientes: "1" }, { cacheMs: 15000 })
+    var tareasP = fetchJSON("tareas_semanales", { nombre: esAdmin ? "" : tecnicoNombre, pendientes: "1" }, { cacheMs: 15000, refresh: !!fresco })
         .then(function (d) { resultado.tareas = (d && d.tareas) || []; })
         .catch(function () { errores++; });
-    var averiasP = refrescarAverias().catch(function () { errores++; return []; });
+    // Si las averias ya estan en memoria (se acaban de pedir al restaurar la
+    // sesion) se reutilizan. Antes se pedian aqui otra vez con refresh, o sea
+    // la lista entera bajandose por segunda vez segundos despues de la
+    // primera, sin que hubiera cambiado nada.
+    var averiasP = (averiasDisponibles.length > 0)
+        ? Promise.resolve(averiasDisponibles)
+        : refrescarAverias().catch(function () { errores++; return []; });
     var ordenesP = fetchJSON("ordenes_trabajo", {}, { cacheMs: 15000 })
         .then(function (d) { resultado.ordenes = (d && d.ordenes) || []; })
         .catch(function () { errores++; });
@@ -5287,15 +5302,19 @@ function hayModalAbierto() {
 
 function refrescoVivoTick() {
     if (!usuarioActual || !moduloActivo) return;
+    // Con la pestaña oculta no se refresca nada. Estas tablets se dejan
+    // abiertas todo el turno y descargar cada 15 segundos en una pestaña que
+    // nadie mira es gastar datos y bateria a cambio de nada.
+    if (document.hidden) return;
     var ae = document.activeElement;
     if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT")) return;
     if (hayModalAbierto()) return;
     var m = moduloActivo;
     if (m === "inicio") {
-        borrarCacheV("averias");
-        borrarCacheV("dashboard");
-        borrarCacheV("tareas_semanales");
-        renderInicio();
+        // No se borran las caches. Este tick pide los datos con refresh:true,
+        // que los baja del servidor Y los deja guardados; borrarlos antes solo
+        // conseguia que la siguiente peticion tuviera que bajarlos otra vez.
+        renderInicio(true);
     } else if (m === "solicitudes") {
         refrescarSolicitudesVivo();
     } else if (m === "ordenes") {

@@ -4610,8 +4610,8 @@ function pintarPreventivos() {
             ' ' + retBadges +
             '<div style="color:#888;font-size:.8rem;">Zona: ' + escaparHTML(p.zona) + ' | Tipo: ' + escaparHTML(p.tipo) +
             ' | Frecuencia: ' + frecBadge + '<br>Actividad: ' + escaparHTML(p.actividad) +
-            (p.fecha ? ' | Generado: ' + escaparHTML(p.fecha) : '') +
-            (p.fechaLimite ? ' | Limite: ' + escaparHTML(p.fechaLimite) : '') +
+            (p.fecha ? ' | Vence: ' + escaparHTML(p.fecha) : '') +
+            (p.fechaLimite ? ' | Resolver antes de: ' + escaparHTML(p.fechaLimite) : '') +
             (String(p.motivoRetraso || "") ? '<br><span style="color:#d32f2f;">Motivo: ' + escaparHTML(p.motivoRetraso) + '</span>' : '') +
             '</div></div>' + badgeEstado(p.estado) + '</div>';
     });

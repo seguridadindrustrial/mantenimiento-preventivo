@@ -7,7 +7,7 @@
     <title>Formulario de Mantenimiento preventivo y correctivo</title>
     <link rel="icon" href="logo%20cc.soul.jpg">
     <link rel="apple-touch-icon" href="logo%20cc.soul.jpg">
-    <link rel="stylesheet" href="styles.css?v=23">
+    <link rel="stylesheet" href="styles.css?v=24">
 </head>
 <body>
     <header class="image">
@@ -232,32 +232,13 @@
             </div>
 
             <div class="form-group" id="aEquipoGroup">
-                    <label for="aEquipo">Equipo</label>
-                <div class="combobox" id="aEquipoCombo">
-                    <div class="combobox-display" id="aEquipoDisplay" onclick="toggleCombobox('aEquipo')">Seleccionar equipo...</div>
-                    <input type="hidden" id="aEquipo" name="aEquipo">
-                    <div class="combobox-dropdown" id="aEquipoDropdown">
-                        <input type="text" class="combobox-search" id="aEquipoSearch" placeholder="Buscar equipo..." autocomplete="off" oninput="filtrarCombobox('aEquipo', this.value)">
-                        <div class="combobox-options" id="aEquipoOptions"></div>
-                    </div>
-                </div>
+                <label for="aEquipo">Equipo</label>
+                <input type="text" id="aEquipo" name="aEquipo" placeholder="Escribe el nombre del equipo..." autocomplete="off">
             </div>
 
-            <div class="form-group" id="aEquipoLibreGroup" style="display:none;">
-                <label for="aEquipoLibre">Equipo del evento</label>
-                <input type="text" id="aEquipoLibre" placeholder="Escribe el equipo...">
-                <label for="aEventoLibre" style="margin-top:12px;">Evento</label>
+            <div class="form-group" id="aEventoGroup" style="display:none;">
+                <label for="aEventoLibre">Evento</label>
                 <input type="text" id="aEventoLibre" placeholder="Nombre del evento...">
-            </div>
-
-            <div class="form-group" id="aEquipoExteriorGroup" style="display:none;">
-                <label for="aEquipoExterior">Equipo</label>
-                <input type="text" id="aEquipoExterior" placeholder="Escribe el nombre del equipo...">
-            </div>
-
-            <div class="form-group" id="aEquipoOtroGroup" style="display:none;">
-                <label for="aEquipoOtro">Nombre del equipo</label>
-                <input type="text" id="aEquipoOtro" placeholder="Escribe el nombre del nuevo equipo...">
             </div>
 
             <div class="form-group">
@@ -633,7 +614,7 @@
     <script defer src="js/semanero.js"></script>
     <script defer src="js/cistern.js"></script>
     <script defer src="js/calendario.js"></script>
-    <script defer src="js/app.js?v=34"></script>
+    <script defer src="js/app.js?v=35"></script>
     <script defer src="js/ordenes.js?v=26"></script>
 
     <div id="ordenReasignarWrap" style="display:none;"></div>

@@ -1632,19 +1632,6 @@ input[type="file"] {
     width: 30px;
 }
 
-.trend-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    margin-left: 6px;
-}
-
-.trend-up { color: #2e7d32; }
-.trend-down { color: #d32f2f; }
-.trend-flat { color: #999; }
-
 .dashboard-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));

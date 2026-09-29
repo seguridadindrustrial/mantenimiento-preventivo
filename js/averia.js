@@ -40,20 +40,10 @@ function enviarAveria(e) {
     const fecha = fh.fecha;
     const hora = fh.hora;
     const esEvento = sedes === "EVENTO";
-    const esExterior = !esEvento && zona === "EXTERIOR";
-    const equipoLibre = esEvento ? document.getElementById("aEquipoLibre").value.trim() : "";
+    // El equipo se escribe a mano, no se elige de una lista.
+    const equipoTexto = document.getElementById("aEquipo").value.trim();
     const eventoNombre = esEvento ? document.getElementById("aEventoLibre").value.trim() : "";
-    const equipoExterior = esExterior ? document.getElementById("aEquipoExterior").value.trim() : "";
-    const equipoSelect = document.getElementById("aEquipo").value;
-    const esOtro = equipoSelect === "__OTRO__";
-    const equipoOtro = esOtro ? document.getElementById("aEquipoOtro").value.trim() : "";
-    const equipo = esEvento
-        ? (equipoLibre + (eventoNombre ? " / Evento: " + eventoNombre : ""))
-        : esExterior
-        ? equipoExterior
-        : esOtro
-        ? equipoOtro
-        : equipoSelect;
+    const equipo = eventoNombre ? (equipoTexto + " / Evento: " + eventoNombre) : equipoTexto;
     const averia = document.querySelector("#aAvSi.active-si, #aAvNo.active-si, #aAvSi.active-no, #aAvNo.active-no");
     const descripcion = document.getElementById("aDescripcion").value.trim();
 
@@ -66,8 +56,8 @@ function enviarAveria(e) {
         alert("Selecciona una zona.");
         return;
     }
-    if (!equipo) {
-        alert(esEvento ? "Escribe el equipo del evento." : esExterior ? "Escribe el nombre del equipo." : esOtro ? "Escribe el nombre del equipo." : "Selecciona un equipo.");
+    if (!equipoTexto) {
+        alert("Escribe el nombre del equipo.");
         return;
     }
     if (esEvento && !eventoNombre) {
@@ -89,10 +79,6 @@ function enviarAveria(e) {
     if (averiaImagenes.length === 0) {
         alert("Debes adjuntar al menos 1 foto.");
         return;
-    }
-
-    if (esOtro && equipo) {
-        postJSON({ tipo: "nuevo_equipo", equipo: equipo, sede: sedes, zona: zona }).catch(function() {});
     }
 
     const idUnico = generarIdUnico(fecha, hora, sedes, equipo, empleadoNombre);
@@ -166,14 +152,8 @@ function clearAveriaForm() {
     document.getElementById("averiaForm").reset();
     document.getElementById("aZonaGroup").style.display = "none";
     document.getElementById("aEquipoGroup").style.display = "block";
-    document.getElementById("aEquipoLibreGroup").style.display = "none";
-    document.getElementById("aEquipoLibre").value = "";
+    document.getElementById("aEventoGroup").style.display = "none";
     document.getElementById("aEventoLibre").value = "";
-    document.getElementById("aEquipoExteriorGroup").style.display = "none";
-    document.getElementById("aEquipoExterior").value = "";
-    document.getElementById("aEquipoOtroGroup").style.display = "none";
-    document.getElementById("aEquipoOtro").value = "";
-    resetCombobox("aEquipo", "Seleccionar equipo...");
     document.getElementById("aAveriaDetalle").style.display = "none";
     document.getElementById("aImagenesPreview").innerHTML = "";
     document.querySelectorAll("#aAvSi, #aAvNo").forEach(b => {

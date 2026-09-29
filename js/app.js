@@ -637,85 +637,28 @@ function cargarRutinasDinamicas() {
         const zonas = getAveriaZonas(sede);
         const zonaGroup = document.getElementById("aZonaGroup");
         const zonaSelect = document.getElementById("aZona");
-        const equipoGroup = document.getElementById("aEquipoGroup");
-        const equipoLibreGroup = document.getElementById("aEquipoLibreGroup");
-        const equipoExteriorGroup = document.getElementById("aEquipoExteriorGroup");
-        const equipoOtroGroup = document.getElementById("aEquipoOtroGroup");
+        const equipo = document.getElementById("aEquipo");
+        const eventoGroup = document.getElementById("aEventoGroup");
+        const evento = document.getElementById("aEventoLibre");
 
-        equipoExteriorGroup.style.display = "none";
-        document.getElementById("aEquipoExterior").value = "";
-        equipoOtroGroup.style.display = "none";
-        document.getElementById("aEquipoOtro").value = "";
+        equipo.value = "";
+        evento.value = "";
 
+        // El equipo se escribe a mano, asi que ya no hay lista que cargar.
+        // Lo unico que cambia segun la sede es si aparece el campo de evento.
         if (sede === "EVENTO") {
             zonaGroup.style.display = "none";
             zonaSelect.value = "";
-            equipoGroup.style.display = "none";
-            resetCombobox("aEquipo", "Seleccionar equipo...");
-            equipoLibreGroup.style.display = "block";
-            document.getElementById("aEquipoLibre").value = "";
-            document.getElementById("aEventoLibre").value = "";
-            actualizarLabelFotos();
-            return;
-        }
-
-        equipoGroup.style.display = "block";
-        equipoLibreGroup.style.display = "none";
-        document.getElementById("aEquipoLibre").value = "";
-        document.getElementById("aEventoLibre").value = "";
-
-        if (zonas.length > 0) {
-            zonaGroup.style.display = "block";
-            populateSelect("aZona", zonas);
-            resetCombobox("aEquipo", "Seleccionar equipo...");
+            eventoGroup.style.display = "block";
         } else {
-            zonaGroup.style.display = "none";
-            zonaSelect.value = "";
-            const equipos = SEDE_EQUIPOS[sede] || [];
-            populateSelect("aEquipo", equipos, true);
-        }
-        actualizarLabelFotos();
-    });
-
-    document.getElementById("aZona").addEventListener("change", function () {
-        const sede = document.getElementById("aSedes").value;
-        const zona = this.value;
-        const equipoGroup = document.getElementById("aEquipoGroup");
-        const equipoExteriorGroup = document.getElementById("aEquipoExteriorGroup");
-        const equipoOtroGroup = document.getElementById("aEquipoOtroGroup");
-
-        equipoOtroGroup.style.display = "none";
-        document.getElementById("aEquipoOtro").value = "";
-
-        if (zona === "EXTERIOR") {
-            equipoGroup.style.display = "none";
-            equipoExteriorGroup.style.display = "block";
-            document.getElementById("aEquipoExterior").value = "";
-            return;
-        }
-        equipoExteriorGroup.style.display = "none";
-        equipoGroup.style.display = "block";
-        if (zona === "OTROS") {
-            populateSelect("aEquipo", SEDE_EQUIPOS[sede] || [], true);
-            return;
-        }
-        const zonaData = ZONA_EQUIPOS[sede]?.[zona] || [];
-        if (zonaData.length > 0) {
-            populateSelect("aEquipo", zonaData, true);
-        } else {
-            populateSelect("aEquipo", SEDE_EQUIPOS[sede] || [], true);
-        }
-    });
-
-    document.getElementById("aEquipo").addEventListener("change", function () {
-        const equipoOtroGroup = document.getElementById("aEquipoOtroGroup");
-        if (this.value === "__OTRO__") {
-            equipoOtroGroup.style.display = "block";
-            document.getElementById("aEquipoOtro").value = "";
-            document.getElementById("aEquipoOtro").focus();
-        } else {
-            equipoOtroGroup.style.display = "none";
-            document.getElementById("aEquipoOtro").value = "";
+            eventoGroup.style.display = "none";
+            if (zonas.length > 0) {
+                zonaGroup.style.display = "block";
+                populateSelect("aZona", zonas);
+            } else {
+                zonaGroup.style.display = "none";
+                zonaSelect.value = "";
+            }
         }
         actualizarLabelFotos();
     });
@@ -1970,34 +1913,6 @@ function renderBarras(container, titulo, items, modulo) {
     container.appendChild(wrap);
 }
 
-function renderTendencia(container, titulo, actual, anterior, modulo) {
-    var wrap = document.createElement("div");
-    wrap.className = "dashboard-charts";
-    var trend = anterior > 0 && actual >= anterior
-        ? '<span class="trend-box trend-up">^ ' + Math.round(((actual - anterior) / anterior) * 100) + '%</span>'
-        : anterior > 0
-        ? '<span class="trend-box trend-down">v ' + Math.round(((anterior - actual) / anterior) * 100) + '%</span>'
-        : '<span class="trend-box trend-flat">- 0%</span>';
-    wrap.innerHTML = '<div class="chart-section-label">' + titulo +
-        (modulo ? ' <span class="chart-ir">Ver &gt;</span>' : '') + '</div>' +
-        '<div class="form-group" style="margin:0;">' +
-        '<div class="chart-bar-row">' +
-        '<span class="chart-bar-label">Esta semana</span>' +
-        '<span class="chart-bar-num" style="width:auto;">' + actual + '</span>' +
-        '</div>' +
-        '<div class="chart-bar-row">' +
-        '<span class="chart-bar-label">Semana anterior</span>' +
-        '<span class="chart-bar-num" style="width:auto;">' + anterior + '</span>' +
-        '</div>' +
-        '<div class="form-group" style="margin-top:6px;">Tendencia' + trend + '</div>' +
-        '</div>';
-    if (modulo) {
-        wrap.classList.add("clickable");
-        wrap.setAttribute("onclick", "navegar('" + modulo + "')");
-    }
-    container.appendChild(wrap);
-}
-
 function renderInicio(fresco) {
     if (!usuarioActual) return;
     var statsEl = document.getElementById("dashboardStats");
@@ -2057,9 +1972,6 @@ function renderInicio(fresco) {
                 { label: "En proceso", value: averias.enProceso || 0, color: "orange", max: averias.total || 1 },
                 { label: "Pendientes", value: averias.pendientes || 0, color: "red", max: averias.total || 1 }
             ], "averias");
-            }
-            if (tieneModulo("historial")) {
-                renderTendencia(chartsEl, "Trabajos realizados", semana.actual || 0, semana.anterior || 0, "historial");
             }
         })
         .catch(function () {
@@ -4511,7 +4423,7 @@ function renderPreventivosProgramar() {
     if (!cont) return;
     cont.innerHTML = '<div style="border:1px solid #e0e0e0;border-radius:12px;padding:14px;">' +
         '<div class="module-title" style="font-size:1rem;">Programar mantenimientos preventivos</div>' +
-        '<p style="color:#888;font-size:.8rem;margin:4px 0 10px;">Indica para cada equipo la fecha de su <b>ultimo mantenimiento</b> (si ya esta programado se toma la fecha guardada) y su frecuencia. Los proximos mantenimientos se contaran desde esa fecha y cada uno tiene un limite de resolucion de 7 dias.</p>' +
+        '<p style="color:#888;font-size:.8rem;margin:4px 0 10px;">Indica para cada equipo la fecha de su <b>ultimo mantenimiento</b> (si ya esta programado se toma la fecha guardada) y su frecuencia. El proximo mantenimiento se cuenta desde esa fecha segun la frecuencia que elijas, y una vez vencido tienes 7 dias para resolverlo.</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
         '<input type="text" id="prevBuscarNombre" placeholder="Filtrar equipos por nombre..." style="flex:1;min-width:180px;padding:9px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box;" oninput="pintarEquiposParaProgramar()">' +
         '<button type="button" class="btn-secondary" onclick="pintarEquiposParaProgramar()">Cargar lista de equipos</button>' +
@@ -4972,7 +4884,7 @@ function programarPreventivosSeleccionados() {
     });
     if (!anySelected) { alert("Marca al menos un equipo."); return; }
     var msgEl = document.getElementById("prevProgramarMsg");
-    if (msgEl) msgEl.innerHTML = '<div style="color:#666;">Programando ' + items.length + ' preventivos... El conteo de los proximos mantenimientos parte de la fecha del ultimo mantenimiento indicada y cada uno tiene limite de resolucion de 7 dias.</div>';
+    if (msgEl) msgEl.innerHTML = '<div style="color:#666;">Programando ' + items.length + ' preventivos... Cada uno vence segun la frecuencia del equipo a partir de la fecha del ultimo mantenimiento indicada, y tienes 7 dias para resolverlo.</div>';
     postJSON({ tipo: "programar_preventivos", items: items })
         .then(function () {
             preventivosCache = [];
@@ -5033,7 +4945,8 @@ function guardarNuevoEquipoPreventivo() {
     ]).then(function () {
         preventivosCache = [];
         borrarCacheV("preventivos");
-        msgEl.innerHTML = '<div style="color:#2e7d32;font-weight:600;">Equipo registrado. Rutina guardada y preventivo programado desde ' + fecha + ' (limite de 7 dias).</div>';
+        msgEl.innerHTML = '<div style="color:#2e7d32;font-weight:600;">Equipo registrado. Rutina guardada y preventivo programado para venc el ' + fecha +
+            ' (' + (frec || "sin frecuencia") + '), con 7 dias para resolverlo.</div>';
         ["nuevoEqSede", "nuevoEqZona", "nuevoEqMarca", "nuevoEqNombre", "prevRutinaPasos", "prevRutinaPlantilla"].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = "";
@@ -5075,27 +4988,64 @@ function pintarEmpleados(cont, lista) {
     var items = lista.slice().sort(function (x, y) {
         return String(x.nombre).localeCompare(String(y.nombre));
     });
+    var conContacto = items.filter(function (p) { return p.whatsapp || p.correo; }).length;
+    var conAsistencia = items.filter(function (p) { return !!p.asistencia; }).length;
+    var vacio = function (v) { return v ? escaparHTML(String(v)) : '<span style="color:#999;">&mdash;</span>'; };
+
     var html =
-        '<input id="empleadoBuscar" type="text" placeholder="Buscar por nombre..." ' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:.85rem;color:#555;">' +
+        '<span><b>' + items.length + '</b> personas</span>' +
+        '<span><b>' + conContacto + '</b> con contacto registrado</span>' +
+        '<span><b>' + conAsistencia + '</b> marcan asistencia</span>' +
+        '</div>' +
+        '<input id="empleadoBuscar" type="text" placeholder="Buscar por nombre, cedula, rol, telefono o correo..." ' +
         'style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:14px;" oninput="filtrarEmpleados(this.value)">' +
-        '<div id="empleadoLista">';
+        '<div id="empleadoLista" style="overflow-x:auto;">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:.85rem;min-width:760px;">' +
+        '<thead><tr style="background:#f5f5f5;text-align:left;">' +
+        ['Nombre', 'Cedula', 'Tipo', 'Rol', 'Asistencia', 'Telefono', 'Correo', 'Jefe', ''].map(function (h, i) {
+            return '<th style="padding:9px 8px;border-bottom:2px solid #ddd;white-space:nowrap;' +
+                (i === 8 ? 'text-align:center;' : '') + '">' + h + '</th>';
+        }).join("") +
+        '</tr></thead><tbody>';
+
     items.forEach(function (p) {
         var t = String(p.tipo || "Personal");
-        var chip = t === "Tecnico" ? ' style="background:#e3f2fd;color:#1976d2;"' :
-            (t === "Gerente" ? ' style="background:#fff3e0;color:#e65100;"' : ' style="background:#e8f5e9;color:#2e7d32;"');
-        html += '<div class="dash-card empleado-item" data-busqueda="' + escaparHTML(p.nombre).toLowerCase() + '" style="cursor:pointer;">' +
-            '<div style="flex:1;"><b>' + escaparHTML(p.nombre) + '</b> <span class="badge-frecuencia" ' + chip + '>' + escaparHTML(t) + '</span></div>' +
-            '<button type="button" class="btn-secondary" style="font-size:.8rem;padding:6px 10px;" onclick="verReportesEmpleado(\'' + String(p.nombre).replace(/'/g, "&#39;") + '\')">Ver reportes</button></div>';
+        var chip = t === "Tecnico" ? 'background:#e3f2fd;color:#1976d2;' : 'background:#e8f5e9;color:#2e7d32;';
+        var rol = String(p.rol || "");
+        var rolChip = rol === "Admin" ? 'background:#fce4ec;color:#c62828;'
+            : rol === "Admin2" ? 'background:#f3e5f5;color:#6a1b9a;'
+            : rol === "Gerente" ? 'background:#fff3e0;color:#e65100;'
+            : 'background:#eceff1;color:#546e7a;';
+        var asis = p.asistencia
+            ? '<span style="background:#e8f5e9;color:#2e7d32;">Si</span>'
+            : '<span style="background:#fafafa;color:#999;">No</span>';
+        if (p.pin) {
+            asis += ' <span style="background:#e3f2fd;color:#1976d2;" title="Tiene PIN asignado">PIN</span>';
+        }
+        var buscar = [p.nombre, p.cedula, p.tipo, p.rol, p.whatsapp, p.correo, p.jefe]
+            .join(" ").toLowerCase();
+        html += '<tr class="empleado-item" data-busqueda="' + escaparHTML(buscar) + '">' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;"><b>' + escaparHTML(p.nombre) + '</b></td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap;">' + vacio(p.cedula) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge-frecuencia" style="' + chip + '">' + escaparHTML(t) + '</span></td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge-frecuencia" style="' + rolChip + '">' + escaparHTML(rol || "-") + '</span></td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap;">' + asis + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap;">' + vacio(p.whatsapp) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;word-break:break-all;">' + vacio(p.correo) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;word-break:break-all;">' + vacio(p.jefe) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">' +
+            '<button type="button" class="btn-secondary" style="font-size:.75rem;padding:5px 9px;" onclick="verReportesEmpleado(\'' +
+            String(p.nombre).replace(/'/g, "&#39;") + '\')">Reportes</button></td></tr>';
     });
-    html += '</div>';
+    html += '</tbody></table></div>';
     cont.innerHTML = html;
 }
 
 function filtrarEmpleados(q) {
     q = String(q || "").trim().toLowerCase();
-    var items = document.querySelectorAll(".empleado-item");
-    items.forEach(function (el) {
-        el.style.display = el.getAttribute("data-busqueda").indexOf(q) === -1 ? "none" : "flex";
+    document.querySelectorAll(".empleado-item").forEach(function (el) {
+        el.style.display = el.getAttribute("data-busqueda").indexOf(q) === -1 ? "none" : "";
     });
 }
 

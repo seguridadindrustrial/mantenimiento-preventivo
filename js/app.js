@@ -4771,10 +4771,15 @@ function pintarEquiposParaProgramar() {
     }
     var filas = JSON.parse(cont.getAttribute("data-filas") || "[]");
     if (filas.length === 0) { cont.innerHTML = '<div class="lista-vacia">No hay equipos disponibles para programar.</div>'; return; }
-    if (!(preventivosCache && preventivosCache.length) && !cont.getAttribute("data-cargando")) {
+    // La lista se pide una sola vez por esta pantalla. Antes se cruzaba por la
+    // longitud de la cache, y como al principio no hay ningun preventivo
+    // programado la longitud siempre era 0: cada repintado volvia a pedirla
+    // y el render se llamaba a si mismo sin parar, colgando el navegador.
+    if (!cont.getAttribute("data-cargado") && !cont.getAttribute("data-cargando")) {
         cont.setAttribute("data-cargando", "1");
         fetchJSON("preventivos", {}, { cacheMs: 15000 }).then(function (d) {
             preventivosCache = d || [];
+            cont.setAttribute("data-cargado", "1");
             cont.removeAttribute("data-cargando");
             if (document.getElementById("prevProgramarLista") === cont) pintarEquiposParaProgramar();
         }).catch(function () {

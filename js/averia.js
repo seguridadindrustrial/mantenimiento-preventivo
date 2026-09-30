@@ -116,30 +116,41 @@ function enviarAveria(e) {
     const btnEnviar = document.getElementById("enviarAveriaBtn");
     btnEnviar.disabled = true;
 
-    fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify(registro)
-    }).then(function (r) { return r.json(); }).catch(function () { return null; })
-    .then(function (respuesta) {
-        if (respuesta && respuesta.status === "duplicate") {
+    // El POST de Apps Script responde con una redireccion sin cabeceras CORS, asi
+    // que la respuesta nunca se podia leer y el aviso de duplicado de abajo nunca
+    // salia. Ahora se pregunta antes por GET y se decide con eso.
+    verificarEnvioDuplicado({
+        tipo: "averia",
+        fecha: fecha,
+        hora: hora,
+        sedes: sedes,
+        zona: zona,
+        equipo: equipo,
+        descripcion: descripcion,
+        empleado: empleadoNombre
+    })
+    .then(function (duplicado) {
+        if (duplicado) {
             averiaEnviando = false;
             btnEnviar.disabled = false;
-            alert("No puedes reportar la misma averia dos veces para el mismo equipo en esta fecha.");
+            alert("Esta averia ya se habia reportado con los mismos datos en esta misma hora.\n\nNo se guardo otra vez.");
             return;
         }
-        marcarEnviado(idUnico);
-        borrarCacheV("averias");
-        alert("Averia reportada correctamente.");
-        clearAveriaForm();
-        if (typeof notiRefrescar === "function") notiRefrescar(true);
-        if (typeof irAlInicio === "function" && usuarioActual) irAlInicio();
-        else {
-            document.getElementById("averiaForm").style.display = "none";
-            document.getElementById("loginSection").style.display = "block";
-            document.getElementById("codigoTecnico").value = "";
-        }
-        averiaEnviando = false;
-        btnEnviar.disabled = false;
+        return postJSON(registro).then(function () {
+            marcarEnviado(idUnico);
+            borrarCacheV("averias");
+            alert("Averia reportada correctamente.");
+            clearAveriaForm();
+            if (typeof notiRefrescar === "function") notiRefrescar(true);
+            if (typeof irAlInicio === "function" && usuarioActual) irAlInicio();
+            else {
+                document.getElementById("averiaForm").style.display = "none";
+                document.getElementById("loginSection").style.display = "block";
+                document.getElementById("codigoTecnico").value = "";
+            }
+            averiaEnviando = false;
+            btnEnviar.disabled = false;
+        });
     })
     .catch(() => {
         averiaEnviando = false;

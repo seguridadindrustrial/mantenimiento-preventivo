@@ -25,6 +25,25 @@ function postJSONRespuesta(body) {
     });
 }
 
+function ahoraHM() {
+    var d = new Date();
+    return (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes();
+}
+
+// Mira en el servidor si este reporte ya se acaba de enviar. El POST va en
+// no-cors y su respuesta no se puede leer, asi que la pregunta se hace con un
+// GET antes de enviar. Si el servidor no contesta se deja pasar igual: es una
+// proteccion, no un requisito, y no debe trabajar a quien si tiene conexion.
+function verificarEnvioDuplicado(datos) {
+    return fetchJSON("verificar_duplicado", datos, { cacheMs: 0 })
+        .then(function (d) {
+            return (d && d.status === "duplicate");
+        })
+        .catch(function () {
+            return false;
+        });
+}
+
 function invalidarCacheV() {
     try {
         var keys = [];
@@ -118,6 +137,20 @@ function activarLabels(root) {
         l.htmlFor = destino;
         l.removeAttribute("data-for");
     });
+}
+
+// escaparHTML sirve para meter texto en el HTML, pero no para meterlo dentro
+// de un onclick con comillas simples: escapa & < > " y deja pasar el apostrofo,
+// que cerraria la cadena y dejaria el boton sin funcionar. Este escape es el
+// que se usa para valores que van como argumento de JS.
+function escJS(valor) {
+    return String(valor == null ? "" : valor)
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/\r/g, "\\r")
+        .replace(/\n/g, "\\n")
+        .replace(/\u2028/g, "\\u2028")
+        .replace(/\u2029/g, "\\u2029");
 }
 
 function populateSelect(id, items, agregarOtro) {
@@ -271,6 +304,15 @@ function marcarEnviado(idUnico) {
     const enviados = JSON.parse(localStorage.getItem("enviadosIds") || "[]");
     enviados.push(idUnico);
     localStorage.setItem("enviadosIds", JSON.stringify(enviados));
+}
+
+// Se usa cuando el envio se cancela (por ejemplo por estar repetido), para
+// que el registro no quede marcado como enviado y el tecnico pueda reintentarlo.
+function marcarNoEnviado(idUnico) {
+    try {
+        const enviados = JSON.parse(localStorage.getItem("enviadosIds") || "[]").filter(function (x) { return x !== idUnico; });
+        localStorage.setItem("enviadosIds", JSON.stringify(enviados));
+    } catch (e) {}
 }
 
 function saveToLocalStorage(registro) {

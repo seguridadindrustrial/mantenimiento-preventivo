@@ -448,40 +448,71 @@ function guardarOrden(e) {
             ayudaCantidad = ayudaTecnicos.length;
         }
     }
-    ordenEnviando = true;
-    var btn = document.getElementById("btnGuardarOrden");
-    if (btn) btn.disabled = true;
-    postJSON({
-        tipo: "orden_trabajo",
-        sede: sede,
-        zona: zona,
-        equipo: equipo,
-        especialidad: especialidad,
-        descripcion: descripcion,
-        tecnico: tecnico,
-        ayuda: ayuda,
-        ayudaCantidad: ayudaCantidad,
-        ayudaTecnicos: ayudaTecnicos,
-        registradoPor: usuarioActual ? usuarioActual.nombre : ""
-    })
-        .then(function (res) {
-            ordenEnviando = false;
-            if (btn) btn.disabled = false;
-            alert("Orden " + ((res && res.numero) || "") + " registrada a " + tecnico + ".");
-            ordenesCache = null;
-            if (typeof notiRefrescar === "function") notiRefrescar(true);
-            if (paraTecnico) {
-                tecOrdenesSubVista("estado");
-            } else {
-                ordenesSubVista("estado");
-            }
+      ordenEnviando = true;
+      var btn = document.getElementById("btnGuardarOrden");
+      if (btn) btn.disabled = true;
+      var fechaOrden = hoyYMD();
+      var horaOrden = ahoraHM();
+      var cuerpo = {
+          tipo: "orden_trabajo",
+          sede: sede,
+          zona: zona,
+          equipo: equipo,
+          especialidad: especialidad,
+          descripcion: descripcion,
+          tecnico: tecnico,
+          ayuda: ayuda,
+          ayudaCantidad: ayudaCantidad,
+          ayudaTecnicos: ayudaTecnicos,
+          registradoPor: usuarioActual ? usuarioActual.nombre : "",
+          creadoPorTecnico: paraTecnico ? "Si" : "No",
+          fecha: fechaOrden,
+          hora: horaOrden
+      };
+      // Antes de mandar, se pregunta al servidor si ya hay una igual en esta
+      // misma hora. El POST no se puede leer, asi que esta es la unica forma de
+      // poder avisar en vez de guardar dos veces sin que nadie se entere.
+      verificarEnvioDuplicado({
+          tipo: "orden_trabajo",
+          sede: sede,
+          zona: zona,
+          equipo: equipo,
+          especialidad: especialidad,
+          descripcion: descripcion,
+          tecnico: tecnico,
+          fecha: fechaOrden,
+          hora: horaOrden
+      }).then(function (duplicado) {
+          ordenEnviando = false;
+          if (btn) btn.disabled = false;
+          if (duplicado) {
+              alert("Esta orden ya se habia enviado con los mismos datos en esta misma hora.\n\nRevisa la lista antes de mandarla de nuevo.");
+              return;
+          }
+          return postJSON(cuerpo)
+              .then(function () {
+                  // El numero no se puede leer del POST, asi que se vuelve a
+                  // pedir la lista y se mira que numero quedo al final.
+                  return fetchJSON("ordenes_trabajo", {}, { refresh: true });
+              })
+                .then(function (d) {
+                    ordenesCache = (d && d.ordenes) || [];
+                    var ultima = ordenesCache.length ? ordenesCache[ordenesCache.length - 1] : null;
+                    alert("Orden " + ((ultima && ultima.numero) || "") + " registrada a " + tecnico + ".");
+                    if (typeof notiRefrescar === "function") notiRefrescar(true);
+                    if (paraTecnico) {
+                        tecOrdenesSubVista("estado");
+                    } else {
+                        ordenesSubVista("estado");
+                    }
+                });
         })
-        .catch(function () {
-            ordenEnviando = false;
-            if (btn) btn.disabled = false;
-            alert("Error al crear la orden. Intenta de nuevo.");
-        });
-}
+          .catch(function () {
+              ordenEnviando = false;
+              if (btn) btn.disabled = false;
+              alert("Error al crear la orden. Intenta de nuevo.");
+          });
+  }
 
 function pintarOrdenesTabs() {
     var nav = document.getElementById("oEstadoTabs");
@@ -541,17 +572,31 @@ function pintarOrdenesEstado(lista) {
           card.style.cssText = "margin-bottom:10px;padding:12px;border-left:4px solid " + colorDeOrden(o) + ";";
           // Reasignar es solo del administrador, y solo mientras la orden siga
           // abierta: una vez cerrada, quien la hizo es parte del historial.
-          var puedeReasignar = esRolAdmin(usuarioActual.rol) &&
-              String(o.estado || "Pendiente") !== "Realizada" &&
-              String(o.estado || "Pendiente") !== "Falsa orden";
+            var puedeReasignar = esRolAdmin(usuarioActual.rol) &&
+                String(o.estado || "Pendiente") !== "Realizada" &&
+                String(o.estado || "Pendiente") !== "Falsa orden";
+            // Editar y borrar quedan solo para el administrador. Cerrar una orden
+            // no bloquea el borrado: a veces una orden se creo por error y hay
+            // que sacarla aunque ya tenga resultado.
+            var esAdmin = esRolAdmin(usuarioActual.rol);
+            // El numero y el tecnico van como argumento de un onclick, asi que
+            // necesitan escape de JS: escaparHTML deja pasar el apostrofo.
+            var numOrden = escJS(o.numero);
+            var botonesAdmin = esAdmin
+                ? '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">' +
+                (puedeReasignar ? '<button type="button" class="btn-secondary" style="font-size:0.8rem;padding:7px 12px;" onclick="reasignarOrden(\'' + numOrden + '\',\'' + escJS(o.tecnico || "") + '\')">Reasignar</button>' : '') +
+                '<button type="button" class="btn-secondary" style="font-size:0.8rem;padding:7px 12px;" onclick="editarOrdenAdmin(\'' + numOrden + '\')">Editar</button>' +
+                '<button type="button" class="btn-secondary" style="font-size:0.8rem;padding:7px 12px;color:#c62828;border-color:#e57373;" onclick="borrarOrdenAdmin(\'' + numOrden + '\')">Borrar</button>' +
+                '</div>'
+                : (puedeReasignar ? '<div style="margin-top:8px;"><button type="button" class="btn-secondary" style="font-size:0.8rem;padding:7px 12px;" onclick="reasignarOrden(\'' + numOrden + '\',\'' + escJS(o.tecnico || "") + '\')">Reasignar</button></div>' : '');
           card.innerHTML =
               '<div style="font-weight:700;color:' + colorDeOrden(o) + ';">' + escaparHTML(o.numero) + ' <span class="badge-frecuencia" style="background:#fff3e0;color:#e65100;">' + escaparHTML(o.especialidad || "General") + '</span></div>' +
               '<div style="font-size:0.85rem;color:#333;margin-top:4px;">Equipo: <b>' + escaparHTML(o.equipo) + '</b></div>' +
               '<div style="font-size:0.82rem;color:#555;">Sede: ' + escaparHTML(o.sede) + (o.zona ? " | Zona: " + escaparHTML(o.zona) : "") + '</div>' +
               '<div style="font-size:0.82rem;color:#555;">Tecnico: <b>' + (o.tecnico ? escaparHTML(o.tecnico) : "Sin asignar") + '</b> | Estado: <b>' + escaparHTML(o.estado || "Pendiente") + '</b></div>' +
               (o.asignado ? '<div style="font-size:0.78rem;color:#888;margin-top:2px;">Asignado: ' + escaparHTML(o.asignado) + '</div>' : '') +
-              (puedeReasignar ? '<div style="margin-top:8px;"><button type="button" class="btn-secondary" style="font-size:0.8rem;padding:7px 12px;" onclick="reasignarOrden(\'' + escaparHTML(o.numero) + '\',\'' + escaparHTML(o.tecnico || "") + '\')">Reasignar</button></div>' : '') +
-              (o.descripcion ? '<div style="font-size:0.82rem;color:#777;margin-top:4px;">' + escaparHTML(o.descripcion) + '</div>' : '') +
+                botonesAdmin +
+                  (o.descripcion ? '<div style="font-size:0.82rem;color:#777;margin-top:4px;">' + escaparHTML(o.descripcion) + '</div>' : '') +
             (o.resolucion ? '<div style="font-size:0.82rem;color:#2e7d32;margin-top:4px;">Resolucion: ' + escaparHTML(o.resolucion) + '</div>' : '') +
             (o.resFecha ? '<div style="font-size:0.78rem;color:#888;margin-top:2px;">Resuelta: ' + escaparHTML(o.resFecha) + ' ' + escaparHTML(o.resHora) + '</div>' : '') +
             ((o.fotos && o.fotos.length) ? '<div style="margin-top:6px;">' + o.fotos.map(function (f) {
@@ -565,6 +610,120 @@ function pintarOrdenesEstado(lista) {
 // Cuando una orden se crea con el tecnico equivocado, o ese tecnico se va,
 // no habia forma de moverla: tocaba entrar a la hoja de calculo a mano y
 // eso se le olvidaba a alguien. Aqui el administrador la mueve desde la lista.
+// Editar una orden ya creada. Solo el administrador: se corregen los datos con
+// que se registro, no el estado ni el numero.
+function editarOrdenAdmin(numero) {
+    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    var orden = (ordenesCache || []).filter(function (o) { return String(o.numero) === String(numero); })[0];
+    if (!orden) { alert("No se encontro la orden " + numero + " en la lista."); return; }
+    var wrap = document.getElementById("ordenReasignarWrap");
+    if (!wrap) return;
+    wrap.innerHTML =
+        '<div class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;">' +
+        '<div style="background:#fff;border-radius:10px;padding:18px;max-width:460px;width:100%;max-height:90vh;overflow:auto;">' +
+        '<div class="module-title" style="font-size:1rem;margin-bottom:10px;">Editar orden ' + escaparHTML(numero) + '</div>' +
+        '<div style="font-size:0.82rem;color:#777;margin-bottom:12px;">Deja vacio un campo si no quieres cambiarlo. El numero y el estado no se modifican.</div>' +
+        '<label style="font-size:0.8rem;color:#555;">Sede</label>' +
+        '<input id="oEdSede" type="text" value="' + escaparHTML(orden.sede || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Zona</label>' +
+        '<input id="oEdZona" type="text" value="' + escaparHTML(orden.zona || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Equipo</label>' +
+        '<input id="oEdEquipo" type="text" value="' + escaparHTML(orden.equipo || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Especialidad</label>' +
+        '<input id="oEdEsp" type="text" value="' + escaparHTML(orden.especialidad || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Tecnico</label>' +
+        '<select id="oEdTecnico" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;"><option value="">(sin cambiar)</option></select>' +
+        '<label style="font-size:0.8rem;color:#555;">Descripcion</label>' +
+        '<textarea id="oEdDesc" rows="3" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;">' + escaparHTML(orden.descripcion || "") + '</textarea>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
+        '<button type="button" class="btn-secondary" onclick="cerrarEditarOrden()">Cancelar</button>' +
+        '<button type="button" class="btn-primary" id="oEdIr">Guardar cambios</button>' +
+        '</div></div></div>';
+    wrap.style.display = "block";
+    fetchJSON("personal", {}, { cacheMs: 120000 })
+        .then(function (personal) {
+            var nombres = (personal || []).filter(function (p) { return p.tipo === "Tecnico"; })
+                .map(function (p) { return p.nombre; });
+            var sel = document.getElementById("oEdTecnico");
+            if (!sel) return;
+            if (orden.tecnico && nombres.indexOf(orden.tecnico) === -1) {
+                nombres = [orden.tecnico].concat(nombres);
+            }
+            populateSelect("oEdTecnico", nombres);
+            if (orden.tecnico) sel.value = orden.tecnico;
+        })
+        .catch(function () { });
+    var ir = document.getElementById("oEdIr");
+    if (ir) ir.onclick = function () { confirmarEditarOrden(numero, orden); };
+}
+
+function cerrarEditarOrden() {
+    var wrap = document.getElementById("ordenReasignarWrap");
+    if (!wrap) return;
+    wrap.style.display = "none";
+    wrap.innerHTML = "";
+}
+
+function confirmarEditarOrden(numero, orden) {
+    var cambios = {};
+    var pares = [
+        ["sede", "oEdSede"], ["zona", "oEdZona"], ["equipo", "oEdEquipo"],
+        ["especialidad", "oEdEsp"], ["descripcion", "oEdDesc"]
+    ];
+    pares.forEach(function (par) {
+        var el = document.getElementById(par[1]);
+        if (!el) return;
+        var antes = String(orden[par[0]] === undefined ? "" : orden[par[0]]);
+        var ahora = String(el.value || "").trim();
+        if (ahora !== antes) cambios[par[0]] = ahora;
+    });
+    var selTec = document.getElementById("oEdTecnico");
+    if (selTec && selTec.value !== String(orden.tecnico || "")) cambios.tecnico = selTec.value;
+    if (Object.keys(cambios).length === 0) { alert("No cambiaste nada."); return; }
+    if (!confirm("Guardar los cambios en la orden " + numero + "?")) return;
+    cambios.tipo = "editar_orden";
+    cambios.numero = numero;
+    cambios.registradoPor = usuarioActual.nombre || "";
+    postJSON(cambios).then(function () {
+        cerrarEditarOrden();
+        // Igual que al reasignar: el POST va en no-cors y no se puede leer. Se
+        // vuelve a pedir la lista y se mira el campo guardado de verdad, para no
+        // confirmarle al admin algo que el backend haya rechazado.
+        return fetchJSON("ordenes_trabajo", {}, { refresh: true });
+    }).then(function (d) {
+        ordenesCache = (d && d.ordenes) || [];
+        var guardo = (ordenesCache || []).filter(function (o) { return String(o.numero) === String(numero); })[0];
+        if (!guardo) {
+            alert("La orden " + numero + " no aparece en la lista.\n\nPuede que el cambio se guardara y la orden quedara en otra categoria, o que el backend la rechazara.");
+        } else {
+            alert("Orden " + numero + " actualizada.");
+        }
+        ordenesSubVista(ordenesCatActual);
+        if (typeof notiRefrescar === "function") notiRefrescar(true);
+    });
+}
+
+// Borrar no elimina de verdad: el backend mueve la orden a la hoja
+// ordenes_borradas con quien la borro y cuando, y deja nota en la actividad.
+function borrarOrdenAdmin(numero) {
+    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    if (!confirm("Borrar la orden " + numero + "?\n\nNo se elimina de verdad: se mueve a la hoja de ordenes borradas junto con la fecha y tu nombre, para que quede el rastro.")) return;
+    postJSON({ tipo: "eliminar_orden", numero: numero, registradoPor: usuarioActual.nombre || "" })
+        .then(function () {
+            return fetchJSON("ordenes_trabajo", {}, { refresh: true });
+        }).then(function (d) {
+            ordenesCache = (d && d.ordenes) || [];
+            var sigue = (ordenesCache || []).filter(function (o) { return String(o.numero) === String(numero); })[0];
+            if (sigue) {
+                alert("La orden " + numero + " sigue en la lista.\n\nEl backend no la borro. Puede que no tengas permiso o que el numero no exista.");
+            } else {
+                alert("Orden " + numero + " movida a la hoja de borradas.");
+            }
+            ordenesSubVista(ordenesCatActual);
+            if (typeof notiRefrescar === "function") notiRefrescar(true);
+        });
+}
+
 function reasignarOrden(numero, tecnicoActual) {
     if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
     var wrap = document.getElementById("ordenReasignarWrap");

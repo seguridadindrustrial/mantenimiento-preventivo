@@ -133,21 +133,13 @@ function irAlPaso2() {
             ayudaCantidad: otroAyudaToggle.dataset.value === "Si" ? otroAyudaTecnicos.length : 0,
             ayudaTecnicos: otroAyudaTecnicos
         };
-        marcarEnviado(idUnico);
-        saveToLocalStorage(registroOtro);
-        fetch(APPS_SCRIPT_URL, {
-            method: "POST", mode: "no-cors",
-            body: JSON.stringify(registroOtro)
-        }).then(function () {
-            alert("Registro enviado correctamente.");
-            mostrarResumenMensaje(generarResumenMantenimiento(registroOtro));
-            clearForm();
-            if (typeof irAlInicio === "function") irAlInicio();
-        }).catch(function () {
-            alert("Error de conexion. El registro se enviara cuando haya internet.");
-            clearForm();
-            if (typeof irAlInicio === "function") irAlInicio();
-        });
+        // Pasa por el mismo camino con verificacion que el reporte normal, para
+        // que aqui tampoco se pueda mandar dos veces lo mismo por accidente.
+        enviarRegistroConChequeo(
+            registroOtro,
+            "Registro enviado correctamente.",
+            "Error de conexion. El registro se enviara cuando haya internet."
+        );
         return;
     }
 
@@ -699,9 +691,52 @@ function enviarFormulario(e) {
         };
     }
 
-    marcarEnviado(idUnico);
-    saveToLocalStorage(registro);
+    // Se comprueba antes de mandar si este mismo tecnico ya registro lo mismo en
+    // esta misma hora. El servidor siempre lo hacia, pero como el POST no se
+    // puede leer, al tecnico le decia "Enviado" cuando en realidad se habia
+    // descartado. El registro solo se marca como enviado si al final si se
+    // guarda, para que si se bloquea el tecnico pueda corregir y mandar otra vez.
+    enviarRegistroConChequeo(
+        registro,
+        "Enviado correctamente a Google Sheets.",
+        "Error al enviar. El registro se guardo localmente."
+    );
+}
 
+// Camino comun de los envios de check-in. Primero se pregunta al servidor si lo
+// mismo ya se guardo en esta misma hora, y solo si no esta repetido se marca el
+// registro y se manda. El chequeo local no alcanzaba porque comparaba la hora
+// con minuto: dos clics con dos minutos de diferencia pasaban como distintos.
+function enviarRegistroConChequeo(registro, mensajeOk, mensajeError) {
+    return verificarEnvioDuplicado({
+        tipo: "checkin",
+        hoja: registro.rutina || "General",
+        tecnico: registro.tecnico,
+        sedes: registro.sedes,
+        zona: registro.zona,
+        equipo: registro.equipo,
+        mantenimiento: registro.mantenimiento,
+        descripcion: registro.descripcion,
+        fecha: registro.fecha,
+        hora: registro.hora
+    }).then(function (duplicado) {
+        if (duplicado) {
+            alert("Este reporte ya se habia enviado con los mismos datos en esta misma hora.\n\nNo se guardo otra vez. Si necesitas registrar algo distinto, cambia la descripcion.");
+            return;
+        }
+        marcarEnviado(registro.id);
+        saveToLocalStorage(registro);
+        return enviarReporteRegistro(registro, mensajeOk, mensajeError);
+    }).catch(function () {
+        // Si la comprobacion no se pudo hacer, se manda igual: es una proteccion,
+        // no un permiso para trabajar. El servidor la vuelve a hacer igual.
+        marcarEnviado(registro.id);
+        saveToLocalStorage(registro);
+        return enviarReporteRegistro(registro, mensajeOk, mensajeError);
+    });
+}
+
+function enviarReporteRegistro(registro, mensajeOk, mensajeError) {
     fetch(APPS_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
@@ -714,18 +749,18 @@ function enviarFormulario(e) {
                 equipo: registro.retraso.equipo,
                 fechaProgramada: registro.retraso.fechaProgramada,
                 motivo: registro.retraso.motivo,
-                fecha: fecha,
-                hora: hora,
-                tecnico: tecnicoNombre
+                fecha: registro.fecha,
+                hora: registro.hora,
+                tecnico: registro.tecnico
             }).catch(function () {});
         }
-        alert("Enviado correctamente a Google Sheets.");
+        alert(mensajeOk || "Enviado correctamente a Google Sheets.");
         mostrarResumenMensaje(generarResumenMantenimiento(registro));
         clearForm();
         if (typeof irAlInicio === "function") irAlInicio();
     })
     .catch(() => {
-        alert("Error al enviar. El registro se guardo localmente.");
+        alert(mensajeError || "Error al enviar. El registro se guardo localmente.");
         clearForm();
         if (typeof irAlInicio === "function") irAlInicio();
     });
@@ -790,4 +825,102 @@ function copiarResumen() {
 
 function cerrarResumen() {
     document.getElementById("resumenModal").style.display = "none";
+}
+
+// Editar y borrar correctivos desde el historial. Solo administradores.
+// La hoja todo no tiene ID: se manda la fila mas la clave (Fecha y Hora) para
+// que el backend confirme que es justo el registro que se eligio.
+function correctivoDeHistorial(fila, clave) {
+    return (mantenimientosHistorial || []).filter(function (m) {
+        return Number(m.fila) === Number(fila) && String(m.clave || "") === String(clave || "");
+    })[0];
+}
+
+function editarCorrectivo(fila, clave) {
+    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    var m = correctivoDeHistorial(fila, clave);
+    if (!m) { alert("No se encontro el registro. Recarga el historial e intenta de nuevo."); return; }
+    var wrap = document.getElementById("historialWrap") || document.body;
+    var w = wrap.querySelector("#corrEdWrap");
+    if (!w) {
+        w = document.createElement("div");
+        w.id = "corrEdWrap";
+        wrap.appendChild(w);
+    }
+    w.innerHTML =
+        '<div class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;">' +
+        '<div style="background:#fff;border-radius:10px;padding:18px;max-width:460px;width:100%;max-height:90vh;overflow:auto;">' +
+        '<div class="module-title" style="font-size:1rem;margin-bottom:10px;">Editar correctivo</div>' +
+        '<div style="font-size:0.82rem;color:#777;margin-bottom:12px;">' + escaparHTML(m.fecha || "") + ' ' + escaparHTML(m.hora || "") + ' | ' + escaparHTML(m.equipo || "") + '</div>' +
+        '<label style="font-size:0.8rem;color:#555;">Sede</label>' +
+        '<input id="cEdSede" type="text" value="' + escaparHTML(m.sede || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Zona</label>' +
+        '<input id="cEdZona" type="text" value="' + escaparHTML(m.zona || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Equipo</label>' +
+        '<input id="cEdEquipo" type="text" value="' + escaparHTML(m.equipo || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Tecnico</label>' +
+        '<input id="cEdTec" type="text" value="' + escaparHTML(m.tecnico || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Actividad</label>' +
+        '<input id="cEdAct" type="text" value="' + escaparHTML(m.actividad || "") + '" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+        '<label style="font-size:0.8rem;color:#555;">Descripcion</label>' +
+        '<textarea id="cEdDesc" rows="3" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;">' + escaparHTML(m.descripcion || "") + '</textarea>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
+        '<button type="button" class="btn-secondary" onclick="cerrarEditarCorrectivo()">Cancelar</button>' +
+        '<button type="button" class="btn-primary" id="cEdIr">Guardar cambios</button>' +
+        '</div></div></div>';
+    var ir = document.getElementById("cEdIr");
+    if (ir) ir.onclick = function () { confirmarEditarCorrectivo(fila, clave, m); };
+}
+
+function cerrarEditarCorrectivo() {
+    var w = document.getElementById("corrEdWrap");
+    if (w) w.innerHTML = "";
+}
+
+function confirmarEditarCorrectivo(fila, clave, m) {
+    var cambios = {};
+    var pares = [["sede", "cEdSede"], ["zona", "cEdZona"], ["equipo", "cEdEquipo"],
+    ["tecnico", "cEdTec"], ["actividad", "cEdAct"], ["descripcion", "cEdDesc"]];
+    pares.forEach(function (par) {
+        var el = document.getElementById(par[1]);
+        if (!el) return;
+        var antes = String(m[par[0]] === undefined ? "" : m[par[0]]);
+        var ahora = String(el.value || "").trim();
+        if (ahora !== antes) cambios[par[0]] = ahora;
+    });
+    if (Object.keys(cambios).length === 0) { alert("No cambiaste nada."); return; }
+    if (!confirm("Guardar los cambios en este correctivo?")) return;
+    cambios.tipo = "editar_registro_todo";
+    cambios.fila = fila;
+    cambios.clave = clave;
+    cambios.registradoPor = usuarioActual.nombre || "";
+    var btn = document.getElementById("cEdIr");
+    if (btn) { btn.disabled = true; btn.textContent = "Guardando..."; }
+    postJSON(cambios).then(function () {
+        // El POST va en no-cors: se vuelve a pedir el historial y se comprueba
+        // el valor guardado, en vez de darlo por bueno sin verificar.
+        return fetchJSON("historial_mantenimientos", {}, { refresh: true });
+    }).then(function (d) {
+        mantenimientosHistorial = (d && d.registros) || [];
+        mantenimientosHistorialCargados = true;
+        cerrarEditarCorrectivo();
+        pintarHistorial();
+        alert("Correctivo actualizado.");
+        if (typeof notiRefrescar === "function") notiRefrescar(true);
+    });
+}
+
+function borrarCorrectivo(fila, clave) {
+    if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) return;
+    if (!confirm("Borrar este correctivo?\n\nNo se elimina de verdad: se mueve a la hoja de borrados con la fecha y tu nombre, para que quede el rastro.")) return;
+    postJSON({ tipo: "eliminar_registro_todo", fila: fila, clave: clave, registradoPor: usuarioActual.nombre || "" })
+        .then(function () {
+            return fetchJSON("historial_mantenimientos", {}, { refresh: true });
+        }).then(function (d) {
+            mantenimientosHistorial = (d && d.registros) || [];
+            mantenimientosHistorialCargados = true;
+            pintarHistorial();
+            alert("Correctivo movido a la hoja de borrados.");
+            if (typeof notiRefrescar === "function") notiRefrescar(true);
+        });
 }

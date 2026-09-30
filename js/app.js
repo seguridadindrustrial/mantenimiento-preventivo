@@ -2560,20 +2560,26 @@ function pintarHistorial() {
         });
     }
     if (filtro !== "averias") {
-        mant.forEach(function (m) {
-            filas.push({
-                tipoFuente: "mantenimiento",
-                numero: "",
-                fecha: m.fecha || "",
-                hora: m.hora || "",
-                sede: m.sede || "",
-                equipo: m.equipo || "",
-                responsable: m.tecnico + (m.ayudante ? " (apoyo " + m.ayudante + ")" : ""),
-                detalle: m.actividad || "",
-                estado: "Registrado",
-                fotos: null
-            });
-        });
+          mant.forEach(function (m) {
+              filas.push({
+                  tipoFuente: "mantenimiento",
+                  numero: "",
+                  fecha: m.fecha || "",
+                  hora: m.hora || "",
+                  sede: m.sede || "",
+                  equipo: m.equipo || "",
+                  responsable: m.tecnico + (m.ayudante ? " (apoyo " + m.ayudante + ")" : ""),
+                  detalle: m.actividad || "",
+                  estado: "Registrado",
+                  fotos: null,
+                  // fila y clave van juntos: la hoja todo no tiene ID propio, asi
+                  // que el backend usa la clave para confirmar que la fila que
+                  // llega es la misma que se eligio y no otra que se haya movido.
+                  fila: m.fila,
+                  clave: m.clave,
+                  zona: m.zona || ""
+              });
+          });
     }
     var hq = String((document.getElementById("historialBuscar") || {}).value || "").trim().toLowerCase();
     if (hq) {
@@ -2592,7 +2598,7 @@ function pintarHistorial() {
     t.className = "cisterna-deuda-tabla";
     var thead = document.createElement("thead");
     var trh = document.createElement("tr");
-    ["Numero", "Fecha", "Sede", "Equipo", "Responsable", "Detalle", "Estado", "Fotos"].forEach(function (h) {
+      ["Numero", "Fecha", "Sede", "Equipo", "Responsable", "Detalle", "Estado", "Fotos"].concat(esAdminO ? ["Acciones"] : []).forEach(function (h) {
         var th = document.createElement("th");
         th.textContent = h;
         trh.appendChild(th);
@@ -2623,10 +2629,21 @@ function pintarHistorial() {
         var tdEstado = document.createElement("td");
         tdEstado.textContent = f.estado;
         tr.appendChild(tdEstado);
-        var tdFotos = document.createElement("td");
-        tdFotos.innerHTML = f.fotos ? htmlFotosAveria(f.fotos) : "";
-        tr.appendChild(tdFotos);
-        tbody.appendChild(tr);
+          var tdFotos = document.createElement("td");
+          tdFotos.innerHTML = f.fotos ? htmlFotosAveria(f.fotos) : "";
+          tr.appendChild(tdFotos);
+          // Solo los correctivos tienen la fila adressable; las averias van por
+          // su propio numero y todavia no admiten edicion desde aqui.
+          if (esAdminO) {
+              var tdAcc = document.createElement("td");
+              if (f.tipoFuente === "mantenimiento" && f.fila) {
+                  tdAcc.innerHTML =
+                      '<button type="button" class="btn-secondary" style="font-size:0.78rem;padding:5px 10px;" onclick="editarCorrectivo(' + f.fila + ',\'' + escJS(f.clave || "") + '\')">Editar</button> ' +
+                      '<button type="button" class="btn-secondary" style="font-size:0.78rem;padding:5px 10px;color:#c62828;border-color:#e57373;" onclick="borrarCorrectivo(' + f.fila + ',\'' + escJS(f.clave || "") + '\')">Borrar</button>';
+              }
+              tr.appendChild(tdAcc);
+          }
+          tbody.appendChild(tr);
     });
     t.appendChild(tbody);
     cont.innerHTML = "";

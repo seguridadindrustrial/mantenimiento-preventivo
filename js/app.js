@@ -4590,20 +4590,28 @@ function pintarCalendarioPreventivosGrid() {
     var celdas = [];
     for (var m = 0; m < 12; m++) celdas.push({});
     var hoy = new Date();
+    // Comparacion por dia, no por hora: lo que vence hoy sigue pendiente hasta
+    // que se acaba el dia, no se pone rojo a las 00:01.
+    var hoyCorte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
     var meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
     (preventivosCache || []).forEach(function (p) {
         var base = fechaParseJS(p.fecha);
         if (!base) return;
         var wks = FRECUENCIA_SEMANAS[String(p.frecuencia || "").trim()] || 1;
-        var iniE = String(p.estado || "") === "E" ? 1 : 0;
-        for (var i = iniE; i < 120; i++) {
+        var realizado = String(p.estado || "") === "E" || String(p.retrasado || "") === "Si";
+        for (var i = 0; i < 120; i++) {
             var o = new Date(base);
             o.setDate(base.getDate() + i * 7 * wks);
             if (o.getFullYear() > anioCalendario) break;
             if (o.getFullYear() < anioCalendario) continue;
             var sem = Math.floor((o.getDate() - 1) / 7) + 1;
             if (!celdas[o.getMonth()][sem]) celdas[o.getMonth()][sem] = [];
-            celdas[o.getMonth()][sem].push({ equipo: p.equipo, frec: p.frecuencia, st: letraEstadoPreventivo(p) });
+            // Cada ocurrencia se pinta con su propio estado: solo la que se
+            // realizo queda en verde. Las siguientes vuelven a estar pendientes.
+            var st = "PR";
+            if (i === 0 && realizado) st = "E";
+            else if (o.getTime() < hoyCorte.getTime()) st = "N";
+            celdas[o.getMonth()][sem].push({ equipo: p.equipo, frec: p.frecuencia, st: st });
         }
     });
     var html = "";

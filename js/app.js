@@ -5033,9 +5033,12 @@ function pintarEmpleados(cont, lista) {
         '<div id="empleadoLista" style="overflow-x:auto;">' +
         '<table style="width:100%;border-collapse:collapse;font-size:.85rem;min-width:760px;">' +
         '<thead><tr style="background:#f5f5f5;text-align:left;">' +
-        ['Nombre', 'Cedula', 'Tipo', 'Rol', 'Asistencia', 'Telefono', 'Correo', 'Jefe', ''].map(function (h, i) {
+        // La columna Jefe no se muestra: es el mismo correo de Carolina repetido
+        // en casi todos y no se entiende como dato de cada persona. El valor
+        // sigue existiendo en el backend, que lo usa para avisarle las averias.
+        ['Nombre', 'Cedula', 'Tipo', 'Rol', 'Asistencia', 'Telefono', 'Correo', ''].map(function (h, i) {
             return '<th style="padding:9px 8px;border-bottom:2px solid #ddd;white-space:nowrap;' +
-                (i === 8 ? 'text-align:center;' : '') + '">' + h + '</th>';
+                (i === 7 ? 'text-align:center;' : '') + '">' + h + '</th>';
         }).join("") +
         '</tr></thead><tbody>';
 
@@ -5053,7 +5056,7 @@ function pintarEmpleados(cont, lista) {
         if (p.pin) {
             asis += ' <span style="background:#e3f2fd;color:#1976d2;" title="Tiene PIN asignado">PIN</span>';
         }
-        var buscar = [p.nombre, p.cedula, p.tipo, p.rol, p.whatsapp, p.correo, p.jefe]
+        var buscar = [p.nombre, p.cedula, p.tipo, p.rol, p.whatsapp, p.correo]
             .join(" ").toLowerCase();
         html += '<tr class="empleado-item" data-busqueda="' + escaparHTML(buscar) + '">' +
             '<td style="padding:8px;border-bottom:1px solid #eee;"><b>' + escaparHTML(p.nombre) + '</b></td>' +
@@ -5062,9 +5065,8 @@ function pintarEmpleados(cont, lista) {
             '<td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge-frecuencia" style="' + rolChip + '">' + escaparHTML(rol || "-") + '</span></td>' +
             '<td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap;">' + asis + '</td>' +
             '<td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap;">' + vacio(p.whatsapp) + '</td>' +
-            '<td style="padding:8px;border-bottom:1px solid #eee;word-break:break-all;">' + vacio(p.correo) + '</td>' +
-            '<td style="padding:8px;border-bottom:1px solid #eee;word-break:break-all;">' + vacio(p.jefe) + '</td>' +
-            '<td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">' +
+        '<td style="padding:8px;border-bottom:1px solid #eee;word-break:break-all;">' + vacio(p.correo) + '</td>' +
+        '<td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">' +
             '<button type="button" class="btn-secondary" style="font-size:.75rem;padding:5px 9px;" onclick="verReportesEmpleado(\'' +
             String(p.nombre).replace(/'/g, "&#39;") + '\')">Reportes</button></td></tr>';
     });

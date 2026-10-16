@@ -5483,6 +5483,27 @@ function actualizarLabelFotos() {
     label.style.fontWeight = "700";
 }
 
+// El boton flotante de abajo a la derecha alterna: un toque baja hasta el
+// boton de Siguiente/Enviar y el siguiente sube al inicio del formulario.
+// Antes adivinaba la direccion segun donde estuviera el boton de Siguiente, y
+// cuando ese boton ya se veia solo dejaba subir (o al reves), asi que no
+// servia para ir y volver.
+var miniNavDir = "down";
+
+function setMiniNavDir(dir) {
+    miniNavDir = (dir === "up") ? "up" : "down";
+    var btnMini = document.getElementById("btnMiniNav");
+    if (!btnMini) return;
+    if (miniNavDir === "up") {
+        btnMini.textContent = "▲";
+        btnMini.title = "Subir";
+    } else {
+        btnMini.textContent = "▼";
+        btnMini.title = "Bajar";
+    }
+    btnMini.setAttribute("data-dir", miniNavDir);
+}
+
 function mostrarMiniNav() {
     var nav = document.getElementById("miniNav");
     if (!nav) return;
@@ -5492,15 +5513,12 @@ function mostrarMiniNav() {
         return;
     }
     nav.style.display = "block";
-    window.removeEventListener("scroll", actualizarMiniNav);
-    window.addEventListener("scroll", actualizarMiniNav);
-    actualizarMiniNav();
+    setMiniNavDir("down");
 }
 
 function ocultarMiniNav() {
     var nav = document.getElementById("miniNav");
     if (nav) nav.style.display = "none";
-    window.removeEventListener("scroll", actualizarMiniNav);
 }
 
 function esElementoVisible(el) {
@@ -5546,30 +5564,15 @@ function obtenerObjetivoMiniNav() {
 
 function actualizarMiniNav() {
     var nav = document.getElementById("miniNav");
-    var btnMini = document.getElementById("btnMiniNav");
-    if (!nav || !btnMini || nav.style.display === "none") return;
-
-    var objetivo = obtenerObjetivoMiniNav();
-    if (!objetivo) return;
-
-    var rect = objetivo.getBoundingClientRect();
-    var visibleObjetivo = (rect.top > 0 && rect.top < window.innerHeight * 0.75);
-
-    nav.style.display = "block";
-    if (visibleObjetivo) {
-        btnMini.textContent = "^";
-        btnMini.title = "Volver arriba";
-        btnMini.setAttribute("data-dir", "up");
-    } else {
-        btnMini.textContent = "v";
-        btnMini.title = "Bajar";
-        btnMini.setAttribute("data-dir", "down");
-    }
+    if (!nav || nav.style.display === "none") return;
+    // Al cambiar de paso se reinicia para que el primer toque baje hasta
+    // Siguiente/Enviar.
+    setMiniNavDir("down");
 }
 
 function irMiniNav() {
     var btnMini = document.getElementById("btnMiniNav");
-    var dir = btnMini ? btnMini.getAttribute("data-dir") : "down";
+    var dir = btnMini ? btnMini.getAttribute("data-dir") : miniNavDir;
     if (dir === "up") {
         var contenedor = document.getElementById("checkinForm");
         if (!contenedor || contenedor.style.display === "none") {
@@ -5582,9 +5585,11 @@ function irMiniNav() {
         }
         if (!contenedor) contenedor = document.body;
         contenedor.scrollIntoView({ behavior: "smooth", block: "start" });
+        setMiniNavDir("down");
     } else {
         var objetivo = obtenerObjetivoMiniNav();
         if (objetivo) objetivo.scrollIntoView({ behavior: "smooth", block: "center" });
+        setMiniNavDir("up");
     }
 }
 

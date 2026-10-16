@@ -19,9 +19,31 @@ function restablecerMantSub() {
     if (cards) cards.style.display = "";
 }
 
+// El preventivo lo ve cualquiera que entre a Mantenimiento: el tecnico, sus
+// tareas asignadas; el admin (y Admin2), las de todos los tecnicos. Antes solo
+// el tecnico veia la lista y el admin caia directo al formulario de reporte,
+// asi que los preventivos asignados no aparecian por ningun lado.
+function abrirSubPreventivos() {
+    empujarModuloHistorial("mantenimiento");
+    var cards = document.getElementById("mantCards");
+    var sub = document.getElementById("mantSubContent");
+    if (typeof pushSubVolver === "function") pushSubVolver("Volver a Mantenimiento", restablecerMantSub);
+    if (cards) cards.style.display = "none";
+    if (sub) {
+        sub.style.display = "block";
+        sub.dataset.mantSub = "preventivos";
+        sub.innerHTML = '<div class="lista-vacia">Cargando...</div>';
+        renderMisPreventivosSub(sub);
+    }
+}
+
 function navtarMantCard(tipo) {
     var rol = usuarioActual ? usuarioActual.rol : "";
-    if (rol === NUESTROS_ROLES.TECNICO && (tipo === "PREVENTIVO" || tipo === "OTRO")) {
+    if (tipo === "PREVENTIVO") {
+        abrirSubPreventivos();
+        return;
+    }
+    if (rol === NUESTROS_ROLES.TECNICO && tipo === "OTRO") {
         empujarModuloHistorial("mantenimiento");
         var cards = document.getElementById("mantCards");
         var sub = document.getElementById("mantSubContent");
@@ -29,14 +51,8 @@ function navtarMantCard(tipo) {
         if (cards) cards.style.display = "none";
         if (sub) {
             sub.style.display = "block";
-            if (tipo === "PREVENTIVO") {
-                sub.dataset.mantSub = "preventivos";
-                sub.innerHTML = '<div class="lista-vacia">Cargando...</div>';
-                renderMisPreventivosSub(sub);
-            } else {
-                sub.dataset.mantSub = "ordenes";
-                renderTecOrdenes(sub);
-            }
+            sub.dataset.mantSub = "ordenes";
+            renderTecOrdenes(sub);
         }
         return;
     }
@@ -98,18 +114,23 @@ function tecOrdenesSubVista(sub) {
 
 function renderMisPreventivosSub(cont) {
     if (!cont) return;
-    cont.innerHTML = '<div class="module-title" style="font-size:1rem;">Mis preventivos asignados</div>' +
-        '<div style="color:#666;font-size:.82rem;margin-bottom:10px;">El sistema tomara la fecha y hora de asignacion y del reporte para medir el tiempo de realizacion.</div>' +
+    var esAdmin = usuarioActual && esRolAdmin(usuarioActual.rol);
+    cont.innerHTML =
+        '<div class="module-title" style="font-size:1rem;">' + (esAdmin ? "Preventivos asignados" : "Mis preventivos asignados") + '</div>' +
+        '<div style="color:#666;font-size:.82rem;margin-bottom:10px;">' + (esAdmin
+            ? 'Preventivos que tienen los tecnicos y que todavia no reportan.'
+            : 'El sistema tomara la fecha y hora de asignacion y del reporte para medir el tiempo de realizacion.') + '</div>' +
+        (esAdmin ? '<button type="button" class="btn-primary" style="width:100%;margin-bottom:10px;" onclick="navegarAForm(\'checkinForm\',\'PREVENTIVO\')">Reportar preventivo</button>' : '') +
         '<input type="text" id="prevTecBuscarSub" placeholder="Buscar equipo, zona o tecnico..." oninput="pintarMisPreventivosSub()" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
-        '<div id="prevTecListaSub" class="lista-vacia">Cargando tus tareas asignadas...</div>';
-    fetchJSON("tareas_semanales", { nombre: tecnicoNombre }, { cacheMs: 15000 })
+        '<div id="prevTecListaSub" class="lista-vacia">' + (esAdmin ? "Cargando preventivos asignados..." : "Cargando tus tareas asignadas...") + '</div>';
+    fetchJSON("tareas_semanales", { nombre: esAdmin ? "" : tecnicoNombre, pendientes: "1" }, { cacheMs: 15000 })
         .then(function (res) {
             prevTecTareas = (res && res.tareas) || [];
             pintarMisPreventivosSub();
         })
         .catch(function () {
             var list = document.getElementById("prevTecListaSub");
-            if (list) list.innerHTML = "Sin conexion. No se pudieron cargar tus tareas.";
+            if (list) list.innerHTML = "Sin conexion. No se pudieron cargar las tareas.";
         });
 }
 
@@ -118,10 +139,11 @@ function pintarMisPreventivosSub() {
     if (!list) return;
     if (typeof prevAsignadoActivo !== "undefined" && prevAsignadoActivo) { list.style.display = "none"; return; }
     list.style.display = "";
+    var esAdmin = usuarioActual && esRolAdmin(usuarioActual.rol);
     var tareas = prevTecTareas || [];
     if (tareas.length === 0) {
         list.className = "lista-vacia";
-        list.innerHTML = "No tienes preventivos asignados esta semana.";
+        list.innerHTML = esAdmin ? "No hay preventivos asignados pendientes." : "No tienes preventivos asignados pendientes.";
         return;
     }
     list.className = "";
@@ -132,30 +154,38 @@ function pintarMisPreventivosSub() {
     }) : tareas;
     if (filtradas.length === 0) {
         list.className = "lista-vacia";
-        list.innerHTML = q ? "No hay tareas que coincidan con la busqueda." : "No tienes preventivos asignados como tecnico principal esta semana.";
+        list.innerHTML = q ? "No hay tareas que coincidan con la busqueda." : "No hay preventivos asignados pendientes.";
         return;
     }
     filtradas.forEach(function (t) {
         var esPrincipal = t.rol === "principal";
         var apoyo = String(t.ayudante || t.apoyo || "").trim();
-        var lineasApoyo = "";
-        if (esPrincipal) {
+        var encabezado, lineasApoyo, boton = "";
+        if (esAdmin) {
+            encabezado = "Mantenimiento preventivo";
+            lineasApoyo = '<div style="font-size:0.82rem;color:#2e7d32;margin-top:2px;">Asignado a: <b>' + escaparHTML(t.tecnico || "sin asignar") + '</b>' +
+                (apoyo ? ' (apoyo ' + escaparHTML(apoyo) + ')' : '') + '</div>';
+        } else if (esPrincipal) {
+            encabezado = "Preventivo a tu cargo";
             lineasApoyo = apoyo
                 ? '<div style="font-size:0.82rem;color:#2e7d32;margin-top:2px;">Apoyo: <b>' + escaparHTML(apoyo) + '</b></div>'
                 : '<div style="font-size:0.82rem;color:#888;margin-top:2px;">Sin apoyo</div>';
+            boton = '<button type="button" class="btn-primary" style="margin-top:8px;font-size:0.8rem;padding:8px 12px;" onclick="iniciarPreventivoAsignado(\'' + String(t.equipo || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.zona || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.marca || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(apoyo).replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.fechaAsignacion || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.horaAsignacion || "").replace(/'/g, "&#39;") + '\')">Realizar preventivo</button>';
         } else {
+            encabezado = "Preventivo (apoyo)";
             lineasApoyo = '<div style="font-size:0.82rem;color:#888;margin-top:4px;">Apoyas a <b>' + escaparHTML(t.tecnico) + '</b>. El reporte del mantenimiento lo hace el tecnico principal.</div>';
         }
         var card = document.createElement("div");
         card.className = "card";
         card.style.cssText = "margin-bottom:10px;padding:12px;border-left:4px solid #2e7d32;";
         card.innerHTML =
-            '<div style="font-weight:700;color:#2e7d32;">' + (esPrincipal ? "Preventivo a tu cargo" : "Preventivo (apoyo)") + '</div>' +
+            '<div style="font-weight:700;color:#2e7d32;">' + encabezado + '</div>' +
             '<div style="font-size:0.9rem;color:#333;margin-top:4px;">Equipo: <b>' + escaparHTML(t.equipo) + '</b></div>' +
             '<div style="font-size:0.82rem;color:#555;">Zona: ' + escaparHTML(t.zona) + (t.marca ? ' | Marca: ' + escaparHTML(t.marca) : '') + '</div>' +
             '<div style="font-size:0.82rem;color:#555;">Semana: ' + escaparHTML(t.semanaLabel || t.semana || "") + '</div>' +
+            (t.fechaAsignacion ? '<div style="font-size:0.78rem;color:#888;margin-top:2px;">Asignado: ' + escaparHTML(formatearFechaHora(t.fechaAsignacion, t.horaAsignacion || "")) + '</div>' : '') +
             lineasApoyo +
-            (esPrincipal ? '<button type="button" class="btn-primary" style="margin-top:8px;font-size:0.8rem;padding:8px 12px;" onclick="iniciarPreventivoAsignado(\'' + String(t.equipo || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.zona || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.marca || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(apoyo).replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.fechaAsignacion || "").replace(/'/g, "&#39;") + '\',\'' + escaparHTML(t.horaAsignacion || "").replace(/'/g, "&#39;") + '\')">Realizar preventivo</button>' : '');
+            boton;
         list.appendChild(card);
     });
 }

@@ -172,6 +172,7 @@ select option:focus {
 }
 
 input[type="text"],
+input[type="password"],
 textarea {
     width: 100%;
     padding: 10px 14px;
@@ -186,6 +187,7 @@ textarea {
 }
 
 input[type="text"]:focus,
+input[type="password"]:focus,
 textarea:focus {
     outline: none;
     border-color: #63bb60;
@@ -291,7 +293,8 @@ textarea:focus {
     font-size: 1.1rem;
 }
 
-#loginSection input[type="text"] {
+#loginSection input[type="text"],
+#loginSection input[type="password"] {
     padding: 14px 18px;
     font-size: 1.15rem;
     border-radius: 10px;
@@ -308,7 +311,8 @@ textarea:focus {
         max-width: 450px;
         padding: 40px;
     }
-    #loginSection input[type="text"] {
+    #loginSection input[type="text"],
+    #loginSection input[type="password"] {
         padding: 16px 20px;
         font-size: 1.25rem;
     }
@@ -926,6 +930,7 @@ input[type="file"] {
     }
 
     input[type="text"],
+    input[type="password"],
     input[type="number"],
     input[type="date"],
     select,
@@ -1909,6 +1914,7 @@ body.tema-oscuro .lista-vacia { color: #8f98a3; }
 
 body.tema-oscuro select,
 body.tema-oscuro input[type="text"],
+body.tema-oscuro input[type="password"],
 body.tema-oscuro input[type="email"],
 body.tema-oscuro input[type="number"],
 body.tema-oscuro input[type="date"],
@@ -1924,6 +1930,7 @@ body.tema-oscuro .combobox-search {
 
 body.tema-oscuro select:focus,
 body.tema-oscuro input[type="text"]:focus,
+body.tema-oscuro input[type="password"]:focus,
 body.tema-oscuro input[type="email"]:focus,
 body.tema-oscuro input[type="number"]:focus,
 body.tema-oscuro input[type="date"]:focus,

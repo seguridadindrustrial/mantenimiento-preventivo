@@ -182,6 +182,19 @@ function tallerFieldsCompletos(fields, containerEl) {
     });
 }
 
+// Convierte las sub-preguntas de una tarea (paso -> valor) al formato
+// checkinKeys/checkinValues que el backend guarda como "Respuestas" y que el
+// historial muestra como paso -> respuesta.
+function respuestasDeSub_(sub) {
+    const keys = [];
+    const values = [];
+    Object.keys(sub || {}).forEach(function (k) {
+        keys.push(k);
+        values.push(sub[k] == null ? "" : String(sub[k]));
+    });
+    return { checkinKeys: keys, checkinValues: values };
+}
+
 function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
     const tallerValues = getTallerValues();
     const turno = calcularTurno(hora);
@@ -220,6 +233,7 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
                     task: "Tanques",
                     descripcion: descripcion
                 });
+                var respTanques = respuestasDeSub_(tallerValues["Tanques"].sub);
                 postJSON({
                     tipo: "semanero_tanques",
                     sedes: sedes,
@@ -229,7 +243,9 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
                     tecnico: tecnicoNombre,
                     solicitarCisterna: solicitaCisterna,
                     estado: estadoTanque,
-                    descripcion: descripcion
+                    descripcion: descripcion,
+                    checkinKeys: respTanques.checkinKeys,
+                    checkinValues: respTanques.checkinValues
                 }).catch(function () {});
             }
         }
@@ -561,6 +577,7 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                         task: "Tanques",
                         descripcion: descripcion
                     });
+                    const respTanques = respuestasDeSub_(tarea.sub);
                     postJSON({
                         tipo: "semanero_tanques",
                         sedes: sedes,
@@ -570,7 +587,9 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
                         tecnico: tecnicoNombre,
                         solicitarCisterna: solicitaCisterna,
                         estado: estadoTanque,
-                        descripcion: descripcion
+                        descripcion: descripcion,
+                        checkinKeys: respTanques.checkinKeys,
+                        checkinValues: respTanques.checkinValues
                     }).catch(function () {});
                 }
             }

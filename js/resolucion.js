@@ -215,32 +215,35 @@ function enviarResolucion(e) {
 
     const esOrden = resolucionEsOrden && String(numero).indexOf("OT-") === 0;
 
-    postJSON(registro)
-        .then(() => {
-            huellasNuevas.forEach(h => guardarImagenEnviada(numero, h));
-            resolucionEnviando = false;
-            btnEnviar.disabled = false;
-            if (typeof notiRefrescar === "function") notiRefrescar(true);
-            if (esOrden) borrarCacheV("ordenes_trabajo");
-            const cerrada = averiaCerrada(realizado);
-            if (cerrada) {
-                alert((esOrden ? "Orden " : "Averia ") + numero + " cerrada correctamente.");
-                if (!esOrden) marcarAveriaResuelta(numero);
-                clearResolucionForm();
-                finalizarResolucion();
-            } else {
-                alert(esOrden
-                    ? "Resolucion registrada. La orden " + numero + " queda en proceso."
-                    : "Resolucion enviada. Podras reingresar el codigo para volver a llenar el formulario.");
-                clearResolucionForm();
-                finalizarResolucion();
-            }
-        })
-        .catch(() => {
-            resolucionEnviando = false;
-            btnEnviar.disabled = false;
-            alert("Error al enviar. Intenta de nuevo.");
+    // Igual que al reportar la averia: la respuesta del POST no se puede leer
+    // (no-cors), asi que esperarla solo retrasaba el aviso lo que tardara el
+    // servidor (subir fotos a Drive, crear avisos...). Se envia y se confirma ya.
+    postJSON(registro);
+    huellasNuevas.forEach(h => guardarImagenEnviada(numero, h));
+    resolucionEnviando = false;
+    btnEnviar.disabled = false;
+    if (typeof notiRefrescar === "function") notiRefrescar(true);
+    if (esOrden) borrarCacheV("ordenes_trabajo");
+    if (typeof refrescarAveriasHasta_ === "function" && !esOrden) {
+        refrescarAveriasHasta_(function (arr) {
+            return arr.some(function (a) {
+                return String(a.numero || "") === String(numero || "") && String(a.realizado || "") === String(realizado || "");
+            });
         });
+    }
+    const cerrada = averiaCerrada(realizado);
+    if (cerrada) {
+        alert((esOrden ? "Orden " : "Averia ") + numero + " cerrada correctamente.");
+        if (!esOrden) marcarAveriaResuelta(numero);
+        clearResolucionForm();
+        finalizarResolucion();
+    } else {
+        alert(esOrden
+            ? "Resolucion registrada. La orden " + numero + " queda en proceso."
+            : "Resolucion enviada. Podras reingresar el codigo para volver a llenar el formulario.");
+        clearResolucionForm();
+        finalizarResolucion();
+    }
 }
 
 function marcarAveriaResuelta(numero) {

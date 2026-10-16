@@ -19,6 +19,9 @@ let averiasDisponibles = [];
 let averiasCargadas = false;
 let mantenimientosHistorial = [];
 let mantenimientosHistorialCargados = false;
+// Filas que se estan mostrando ahora en el historial. Se guardan para que el
+// boton "Ver pasos" sepa de que registro viene cada fila sin volver a pedir datos.
+let historialFilasActuales = [];
 let resolucionActualNumero = "";
 let resolucionImagenes = [];
 let cisternaDeudas = [];
@@ -475,6 +478,26 @@ function refrescarAverias(forzar) {
 
 function cargarAverias() {
     return refrescarAverias().catch(function () { averiasCargadas = false; });
+}
+
+// Refresca la lista de averias en segundo plano hasta que el cambio se vea en el
+// servidor. Sirve porque el envio ya no espera al servidor (subir fotos a Drive
+// tarda unos segundos): asi la fila y las fotos aparecen apenas estan listas, sin
+// que el usuario tenga que esperar ni recargar. Se detiene en cuanto coincide.
+function refrescarAveriasHasta_(coincide, intentos, esperaMs) {
+    intentos = intentos || 6;
+    esperaMs = esperaMs || 1200;
+    var paso = function (restantes) {
+        if (restantes <= 0) return;
+        setTimeout(function () {
+            refrescarAverias().then(function (arr) {
+                var ok = false;
+                try { ok = !!(coincide && coincide(arr || [])); } catch (e) { ok = false; }
+                if (!ok) paso(restantes - 1);
+            }).catch(function () { paso(restantes - 1); });
+        }, esperaMs);
+    };
+    paso(intentos);
 }
 
 function buscarAveriaLocal(codigo) {
@@ -934,15 +957,20 @@ function asignarTecnicoWeb() {
     btn.disabled = true;
     btn.textContent = "Asignando...";
 
-    fetch(APPS_SCRIPT_URL, {
+    // La asignacion y la peticion del contacto del tecnico se lanzan a la vez:
+    // antes se encadenaban (esperar el POST y despues el GET) y se sumaban.
+    var asignacion = fetch(APPS_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         body: JSON.stringify({ tipo: "asignar_averia", numero: numeroAv, tecnicoNombre: tecnicoNombre })
-    }).then(function() {
-        return fetch(APPS_SCRIPT_URL + "?accion=tecnico_contacto&nombre=" + encodeURIComponent(tecnicoNombre))
-            .then(function (r) { return r.json(); })
-            .catch(function () { return null; });
-    }).then(function (contacto) {
+    }).catch(function () {});
+
+    var contactoProm = fetch(APPS_SCRIPT_URL + "?accion=tecnico_contacto&nombre=" + encodeURIComponent(tecnicoNombre))
+        .then(function (r) { return r.json(); })
+        .catch(function () { return null; });
+
+    Promise.all([asignacion, contactoProm]).then(function (resultados) {
+        var contacto = resultados[1];
         msg.innerHTML = '<div style="color:#2e7d32;font-weight:600;">Tecnico asignado correctamente</div>';
         if (contacto && contacto.whatsapp) {
             var waUrl = "https://wa.me/" + contacto.whatsapp.replace(/[^0-9]/g, "") + "?text=" + encodeURIComponent("Hola " + tecnicoNombre + ", se te ha asignado la averia " + numeroAv);
@@ -951,7 +979,7 @@ function asignarTecnicoWeb() {
         }
         btn.disabled = false;
         btn.textContent = "Asignar y Notificar";
-    }).catch(function() {
+    }).catch(function () {
         msg.innerHTML = '<div style="color:#d32f2f;font-weight:600;">Error de conexion</div>';
         btn.disabled = false;
         btn.textContent = "Asignar y Notificar";
@@ -2577,7 +2605,19 @@ function pintarHistorial() {
                   // llega es la misma que se eligio y no otra que se haya movido.
                   fila: m.fila,
                   clave: m.clave,
-                  zona: m.zona || ""
+                  zona: m.zona || "",
+                  tipoReporte: m.tipoReporte || "",
+                  // Respuestas del check-in. El backend todavia no las devuelve,
+                  // pero si empieza a hacerlo (checkinKeys/checkinValues, pasos o
+                  // respuestas) el modal de pasos las muestra sin tocar nada mas.
+                  checkinKeys: m.checkinKeys || null,
+                  checkinValues: m.checkinValues || null,
+                  pasos: m.pasos || null,
+                  respuestas: m.respuestas || null,
+                  repuestos: m.repuestos || null,
+                  ayuda: m.ayuda || "",
+                  ayudaTecnicos: m.ayudaTecnicos || null,
+                  mantenimiento: m.mantenimiento || ""
               });
           });
     }
@@ -2594,6 +2634,7 @@ function pintarHistorial() {
     filas.sort(function (x, y) {
         return String(y.fecha).localeCompare(String(x.fecha)) || String(y.numero).localeCompare(String(x.numero)) || String(y.detalle).localeCompare(String(x.detalle));
     });
+    historialFilasActuales = filas;
     var t = document.createElement("table");
     t.className = "cisterna-deuda-tabla";
     var thead = document.createElement("thead");
@@ -2606,7 +2647,7 @@ function pintarHistorial() {
     thead.appendChild(trh);
     t.appendChild(thead);
     var tbody = document.createElement("tbody");
-    filas.forEach(function (f) {
+    filas.forEach(function (f, idxFila) {
         var tr = document.createElement("tr");
         var tdNum = document.createElement("td");
         tdNum.textContent = f.numero;
@@ -2625,6 +2666,20 @@ function pintarHistorial() {
         tr.appendChild(tdResp);
         var tdDet = document.createElement("td");
         tdDet.textContent = f.detalle;
+        // Los mantenimientos se apoyan en una rutina con pasos definidos en el
+        // catalogo. Si es de esos, se ofrece abrir los pasos que se revisaron.
+        if (f.tipoFuente === "mantenimiento" && registroTienePasosPosibles(f)) {
+            var btnPasos = document.createElement("button");
+            btnPasos.type = "button";
+            btnPasos.className = "btn-secondary";
+            btnPasos.style.cssText = "font-size:0.72rem;padding:3px 8px;margin-top:4px;";
+            btnPasos.textContent = "Ver pasos";
+            btnPasos.onclick = (function (i) {
+                return function () { verPasosRutinaHistorial(i); };
+            })(idxFila);
+            tdDet.appendChild(document.createElement("br"));
+            tdDet.appendChild(btnPasos);
+        }
         tr.appendChild(tdDet);
         var tdEstado = document.createElement("td");
         tdEstado.textContent = f.estado;
@@ -2648,6 +2703,240 @@ function pintarHistorial() {
     t.appendChild(tbody);
     cont.innerHTML = "";
     cont.appendChild(t);
+}
+
+// Indica (barato, sin resolver todo) si un registro del historial puede tener
+// pasos de rutina para mostrar. Evita poner el boton en averias/OT sin rutina.
+function registroTienePasosPosibles(f) {
+    var tipo = String(f.tipoReporte || "").toLowerCase();
+    if (tipo === "preventivo" || tipo === "correctivo" || tipo === "semanario") return true;
+    var act = String(f.detalle || "").trim().toLowerCase();
+    if (!act) return false;
+    var tareas = (typeof RUTINA_TALLER !== "undefined" && RUTINA_TALLER["Actividades de Semaneros"]) || [];
+    return tareas.some(function (t) {
+        return t && typeof t === "object" && String(t.label || "").toLowerCase() === act;
+    });
+}
+
+// Arma, a partir del catalogo local (data.js), la lista de pasos de la rutina
+// que se hizo en un registro del historial. Importante: esto son los PASOS
+// DEFINIDOS de la rutina, no las respuestas (Si/No) ni las cantidades que
+// reporto el tecnico: esas no las devuelve todavia el backend.
+function pasosDeRegistroHistorial(f) {
+    var actividad = String(f.detalle || "");
+    var equipo = String(f.equipo || "");
+    var tipo = String(f.tipoReporte || "").toLowerCase();
+    var res = { titulo: "Pasos de la rutina", rutina: "", pasos: [], aviso: "" };
+
+    function aplanar(items, out, prefijo) {
+        (items || []).forEach(function (it) {
+            var esObj = typeof it === "object" && it !== null;
+            var label = esObj ? it.label : it;
+            if (!label) return;
+            out.push((prefijo || "") + label);
+            var sub = esObj ? (it.expand || (it.sub ? [it.sub] : null)) : null;
+            if (sub && sub.length) aplanar(sub, out, "   \u21B3 ");
+        });
+    }
+
+    // Semanero / semanario (Ruices o taller)
+    if (tipo === "semanario" || /semanar|semaner/i.test(actividad)) {
+        if (/ruices/i.test(actividad)) {
+            res.titulo = "Revision del Semanario RUICES";
+            res.rutina = "Semanario RUICES";
+            (RUTINA_SEMANARIO_RUICES || []).forEach(function (sec) {
+                res.pasos.push("[" + (sec.titulo || "Seccion") + "]");
+                if (sec.campos) aplanar(sec.campos, res.pasos, "");
+                if (sec.tareas) aplanar(sec.tareas, res.pasos, "");
+            });
+        } else {
+            res.titulo = "Actividades del semanero";
+            var especifica = actividad.replace(/^\s*semaner\w*\s*/i, "").replace(/^-\s*/, "").trim();
+            res.rutina = especifica || "Actividades de Semaneros";
+            var tareas = (RUTINA_TALLER && RUTINA_TALLER["Actividades de Semaneros"]) || [];
+            if (especifica) {
+                var solo = tareas.filter(function (t) {
+                    return t && typeof t === "object" && String(t.label || "").toLowerCase() === especifica.toLowerCase();
+                });
+                if (solo.length) tareas = solo;
+            }
+            aplanar(tareas, res.pasos, "");
+        }
+        return res;
+    }
+
+    // Correctivo: la rutina define las areas de trabajo
+    if (tipo === "correctivo" || /correctivo/i.test(actividad)) {
+        res.titulo = "Pasos del correctivo";
+        res.rutina = "Rutina Correctiva";
+        aplanar(RUTINA_CORRECTIVO["Rutina Correctiva"], res.pasos, "");
+        return res;
+    }
+
+    // Preventivo: el nombre de la rutina viene despues de "PREVENTIVO - "
+    var nombre = actividad.replace(/^\s*(PREVENTIVO|CORRECTIVO)\s*-\s*/i, "").trim();
+    res.rutina = nombre;
+
+    var pasos = RUTINA_PREVENTIVO[nombre];
+    if (!pasos || pasos.length === 0) {
+        // El catalogo tiene claves con espacios al final: comparar sin espacios
+        for (var k in RUTINA_PREVENTIVO) {
+            if (k.trim() === nombre) { pasos = RUTINA_PREVENTIVO[k]; break; }
+        }
+    }
+    if (!pasos || pasos.length === 0) {
+        // Ultimo recurso: por el equipo segun EQUIPO_RUTINA
+        var porEquipo = String(EQUIPO_RUTINA[equipo] || "").trim();
+        if (porEquipo) {
+            for (var k2 in RUTINA_PREVENTIVO) {
+                if (k2.trim() === porEquipo) { pasos = RUTINA_PREVENTIVO[k2]; break; }
+            }
+        }
+    }
+
+    if (!pasos || pasos.length === 0) {
+        if (/rutina dinamica/i.test(nombre)) {
+            res.titulo = "Pasos de la rutina dinamica";
+            var dyn = (typeof getRutinaDinamicaGuardada === "function") ? getRutinaDinamicaGuardada(equipo) : null;
+            if (dyn && dyn.pasos && dyn.pasos.length) {
+                res.pasos = dyn.pasos.slice();
+                if (dyn.creadoPor) res.aviso = "Rutina creada por " + dyn.creadoPor + ".";
+            } else {
+                res.aviso = "No se encontraron los pasos de esta rutina dinamica en este dispositivo.";
+            }
+            return res;
+        }
+        // Puede ser una tarea suelta del taller (Bombonas, Aceites, Tanques...)
+        var act = actividad.trim().toLowerCase();
+        var tareasTaller = (RUTINA_TALLER && RUTINA_TALLER["Actividades de Semaneros"]) || [];
+        var matchTaller = tareasTaller.filter(function (t) {
+            return t && typeof t === "object" && String(t.label || "").toLowerCase() === act;
+        });
+        if (matchTaller.length) {
+            res.titulo = "Pasos de la tarea";
+            aplanar(matchTaller, res.pasos, "");
+            return res;
+        }
+        res.aviso = "No hay una rutina definida en el catalogo para este registro.";
+        return res;
+    }
+
+    res.titulo = "Pasos de la rutina";
+    aplanar(pasos, res.pasos, "");
+    return res;
+}
+
+// Normaliza las respuestas paso -> valor para un registro del historial,
+// aceptando los formatos que pudiera devolver el backend.
+function respuestasDeRegistroHistorial(f) {
+    var pares = [];
+    if (Array.isArray(f.checkinKeys) && Array.isArray(f.checkinValues)) {
+        for (var i = 0; i < f.checkinKeys.length; i++) {
+            pares.push({ label: f.checkinKeys[i], valor: f.checkinValues[i] });
+        }
+        return pares;
+    }
+    if (Array.isArray(f.pasos)) {
+        f.pasos.forEach(function (p) {
+            if (typeof p === "string") {
+                pares.push({ label: p, valor: "" });
+            } else if (p && typeof p === "object") {
+                var val = (p.valor !== undefined) ? p.valor : (p.respuesta !== undefined ? p.respuesta : (p.value !== undefined ? p.value : ""));
+                pares.push({ label: p.label || p.paso || p.nombre || "", valor: val });
+            }
+        });
+        return pares;
+    }
+    if (f.respuestas && typeof f.respuestas === "object") {
+        Object.keys(f.respuestas).forEach(function (k) {
+            pares.push({ label: k, valor: f.respuestas[k] });
+        });
+        return pares;
+    }
+    return [];
+}
+
+// Muestra en el modal existente (detalleTareaModal) los pasos de la rutina del
+// registro del historial que se pulso, junto con la respuesta de cada paso
+// cuando el backend la devuelve.
+function verPasosRutinaHistorial(indice) {
+    var f = (historialFilasActuales || [])[indice];
+    if (!f) return;
+    var r = pasosDeRegistroHistorial(f);
+    var respuestas = respuestasDeRegistroHistorial(f);
+    var modal = document.getElementById("detalleTareaModal");
+    if (!modal) return;
+    var titulo = document.getElementById("dtTitulo");
+    var info = document.getElementById("dtInfo");
+    var fotos = document.getElementById("dtFotos");
+    var btnIr = document.getElementById("dtBtnIr");
+    if (btnIr) btnIr.style.display = "none";
+    if (fotos) fotos.innerHTML = "";
+    if (titulo) titulo.textContent = (respuestas.length ? "Respuestas de la rutina" : r.titulo) + (r.rutina ? " \u00b7 " + r.rutina : "");
+
+    var html = "";
+    html += "<b>Equipo:</b> " + escaparHTML(f.equipo || "") + "<br>";
+    if (f.sede || f.zona) html += "<b>Sede / Zona:</b> " + escaparHTML((f.sede || "") + (f.zona ? " / " + f.zona : "")) + "<br>";
+    html += "<b>Responsable:</b> " + escaparHTML(f.responsable || "") + "<br>";
+    html += "<b>Fecha:</b> " + escaparHTML(formatearFechaHora(f.fecha, f.hora)) + "<br>";
+    html += "<b>Actividad:</b> " + escaparHTML(f.detalle || "") + "<br>";
+
+    if (respuestas.length) {
+        // Con respuestas: se muestra paso -> respuesta (lo que pidio el usuario).
+        html += '<div style="margin-top:10px;font-weight:700;">Respuestas de la rutina (' + respuestas.length + '):</div>';
+        html += '<div style="margin-top:4px;max-height:300px;overflow:auto;">';
+        respuestas.forEach(function (rp) {
+            var v = String(rp.valor == null ? "" : rp.valor).trim();
+            var estilo = "color:#666;";
+            if (/^si$/i.test(v)) estilo = "color:#2e7d32;font-weight:700;";
+            else if (/^no$/i.test(v)) estilo = "color:#c62828;font-weight:700;";
+            html += '<div style="display:flex;gap:8px;justify-content:space-between;margin:2px 0;padding:4px 6px;border-bottom:1px solid #eee;">' +
+                '<span style="flex:1;">' + escaparHTML(rp.label || "") + '</span>' +
+                '<span style="white-space:nowrap;' + estilo + '">' + escaparHTML(v || "-") + '</span></div>';
+        });
+        html += "</div>";
+    } else if (r.pasos && r.pasos.length) {
+        html += '<div style="margin-top:10px;font-weight:700;">Pasos revisados en la rutina (' + r.pasos.length + '):</div>';
+        html += '<div style="margin-top:4px;max-height:280px;overflow:auto;">';
+        var n = 0;
+        r.pasos.forEach(function (p) {
+            if (/^\[.*\]$/.test(p)) {
+                n = 0;
+                html += '<div style="font-weight:700;color:#5f9263;margin:8px 0 2px;">' + escaparHTML(p) + "</div>";
+            } else {
+                n++;
+                html += '<div style="margin:1px 0;padding-left:6px;">' + n + ". " + escaparHTML(p) + "</div>";
+            }
+        });
+        html += "</div>";
+    }
+
+    if (f.repuestos && f.repuestos.length) {
+        html += '<div style="margin-top:10px;font-weight:700;">Repuestos:</div>';
+        html += '<div style="margin-top:2px;">';
+        f.repuestos.forEach(function (rp) {
+            var nom = (rp && (rp.nombre || rp.repuesto)) || "";
+            var cant = (rp && (rp.cantidad || rp.cant)) || "";
+            html += '<div style="margin:1px 0;">- ' + escaparHTML(nom) + (cant ? " x" + escaparHTML(String(cant)) : "") + "</div>";
+        });
+        html += "</div>";
+    }
+    if (f.ayuda && /^si$/i.test(String(f.ayuda))) {
+        var apoyos = (f.ayudaTecnicos || []).map(function (x) {
+            return typeof x === "string" ? x : (x && (x.nombre || x.tecnico)) || "";
+        }).filter(Boolean);
+        html += '<div style="margin-top:8px;"><b>Necesito apoyo:</b> Si' + (apoyos.length ? " (" + escaparHTML(apoyos.join(", ")) + ")" : "") + "</div>";
+    }
+    if (r.aviso) html += '<div style="margin-top:8px;color:#888;font-size:.85rem;">' + escaparHTML(r.aviso) + "</div>";
+
+    if (respuestas.length) {
+        html += '<div style="margin-top:10px;color:#999;font-size:.78rem;">Respuestas reportadas por el tecnico.</div>';
+    } else {
+        html += '<div style="margin-top:10px;color:#999;font-size:.78rem;">El servidor todavia no devuelve las respuestas (Si/No, cantidades). Estos son los pasos definidos de la rutina.</div>';
+    }
+
+    if (info) info.innerHTML = html;
+    modal.style.display = "flex";
 }
 
 // En el perfil los dos administradores se muestran igual: "Admin" y "Admin2"
@@ -3744,19 +4033,36 @@ function borrarAveriaModulo(numero) {
         });
 }
 
+function actualizarAveriaLocal_(numero, cambios) {
+    var num = String(numero || "");
+    [aAsigDatos.todas, aAsigDatos.averias, averiasDisponibles].forEach(function (lista) {
+        (lista || []).forEach(function (a) {
+            if (String(a.numero || "") === num) {
+                Object.keys(cambios).forEach(function (k) { a[k] = cambios[k]; });
+            }
+        });
+    });
+}
+
 function asignarAveriaModulo(numero) {
     var sel = document.getElementById("aAsigSel_" + numero);
     if (!sel || !sel.value) { alert("Selecciona un tecnico."); return; }
-    postJSON({ tipo: "asignar_averia", numero: numero, tecnicoNombre: sel.value })
-        .then(function () {
-            borrarCacheV("averias");
-            alert("Averia " + numero + " asignada a " + sel.value + ".");
-            if (typeof notiRefrescar === "function") notiRefrescar(true);
-            renderAsignarAverias();
-        })
-        .catch(function () {
-            alert("Sin conexion. No se pudo asignar la averia.");
+    var tecnico = sel.value;
+
+    // Se envia al servidor y se refleja al instante en pantalla. Antes se esperaba
+    // la respuesta del POST y luego se volvia a pedir toda la lista de averias.
+    postJSON({ tipo: "asignar_averia", numero: numero, tecnicoNombre: tecnico });
+    actualizarAveriaLocal_(numero, { asignado: tecnico });
+    alert("Averia " + numero + " asignada a " + tecnico + ".");
+    if (typeof notiRefrescar === "function") notiRefrescar(true);
+    pintarAsignarAverias(null, aAsigDatos.averias, aAsigDatos.tecnicos);
+    if (typeof refrescarAveriasHasta_ === "function") {
+        refrescarAveriasHasta_(function (arr) {
+            return arr.some(function (a) {
+                return String(a.numero || "") === String(numero || "") && String(a.asignado || "") === String(tecnico || "");
+            });
         });
+    }
 }
 
 function renderSolicitudes() {
@@ -4994,6 +5300,7 @@ function cambiarEstadoPreventivo(fila, estado) {
 
 function renderEmpleados() {
     setSubVolver(null);
+    empleadoReporteActual = null;
     var cont = document.getElementById("empleadosContent");
     if (!cont) return;
     if (!usuarioActual || !esRolAdmin(usuarioActual.rol)) {
@@ -5117,22 +5424,53 @@ function cargarReportesEmpleado() {
         });
 }
 
-function pintarReportesEmpleado(reportes) {
+function pintarReportesEmpleado(reportes, desde, hasta) {
     var cont = document.getElementById("repEmpLista");
     if (!cont) return;
     if (!reportes || reportes.length === 0) {
         cont.innerHTML = '<div class="lista-vacia">No hay reportes con esos filtros.</div>';
         return;
     }
-    var html = "";
+    var etiquetasTipo = {
+        preventivo: "Preventivo",
+        correctivo: "Correctivo",
+        otro: "Otro",
+        semanario: "Semanario/Taller",
+        cisterna: "Cisterna"
+    };
+    var coloresTipo = {
+        preventivo: "background:#e3f2fd;color:#1565c0;",
+        correctivo: "background:#fff3e0;color:#e65100;",
+        otro: "background:#eceff1;color:#455a64;",
+        semanario: "background:#e8f5e9;color:#2e7d32;",
+        cisterna: "background:#f3e5f5;color:#6a1b9a;"
+    };
+    // Resumen rapido arriba: total y cuantos de cada tipo, para no tener que
+    // contar tarjetas a ojo al revisar a una persona.
+    var conteo = {};
     reportes.forEach(function (r) {
-        var tipoFecha = r.tipoReporte || "";
+        var t = String(r.tipoReporte || "otro").toLowerCase();
+        conteo[t] = (conteo[t] || 0) + 1;
+    });
+    var ordenados = reportes.slice().sort(function (a, b) {
+        return (String(b.fecha) + String(b.hora)).localeCompare(String(a.fecha) + String(a.hora));
+    });
+    var chips = Object.keys(etiquetasTipo).filter(function (t) { return conteo[t]; }).map(function (t) {
+        return '<span class="badge-frecuencia" style="' + (coloresTipo[t] || "") + '">' + etiquetasTipo[t] + ': ' + conteo[t] + '</span>';
+    }).join(" ");
+    var rango = (desde || hasta)
+        ? ' <span style="color:#888;">' + (desde ? 'desde ' + escaparHTML(desde) : '') + (hasta ? ' hasta ' + escaparHTML(hasta) : '') + '</span>'
+        : "";
+    var html = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;">' +
+        '<span style="font-weight:700;">' + reportes.length + ' reporte' + (reportes.length === 1 ? "" : "s") + '</span>' + rango + chips + '</div>';
+    ordenados.forEach(function (r) {
+        var tipo = String(r.tipoReporte || "otro").toLowerCase();
         html += '<div class="dash-card dash-card-trabajo">' +
             '<div style="flex:1;"><b>' + escaparHTML(r.actividad || "") + '</b>' +
             '<div style="color:#888;font-size:.8rem;">' + escaparHTML(formatearFechaHora(r.fecha || "", r.hora || "")) + ' | ' + escaparHTML(r.sede || "") + (r.zona ? ' / ' + escaparHTML(r.zona) : '') + (r.equipo ? ' | Equipo: ' + escaparHTML(r.equipo) : '') + '</div>' +
-            (r.descripcion ? '<div style="color:#555;font-size:.8rem;margin-top:2px;">' + escaparHTML(r.descripcion) + '</div>' : '') +
+            (r.descripcion ? '<div style="color:#555;font-size:.8rem;margin-top:2px;white-space:pre-wrap;">' + escaparHTML(r.descripcion) + '</div>' : '') +
             (r.ayudante ? '<div style="color:#888;font-size:.78rem;margin-top:2px;">Apoyo: ' + escaparHTML(r.ayudante) + '</div>' : '') + '</div>' +
-            '<span class="badge-frecuencia' + (/preventivo/i.test(tipoFecha) ? " badge-frecuencia-semanal" : "") + '">' + escaparHTML(tipoFecha || "") + '</span></div>';
+            '<span class="badge-frecuencia" style="' + (coloresTipo[tipo] || "") + '">' + escaparHTML(etiquetasTipo[tipo] || r.tipoReporte || "") + '</span></div>';
     });
     cont.innerHTML = html;
 }
@@ -5304,6 +5642,10 @@ function refrescoVivoTick() {
     } else if (m === "preventivos") {
         refrescarPreventivosVivo();
     } else if (m === "empleados") {
+        // Con el detalle de reportes de una persona abierto no se toca nada:
+        // antes este refresco reconstruia la lista cada 15s y botaba al admin
+        // fuera de los reportes sin dejarlo leer.
+        if (empleadoReporteActual) return;
         borrarCacheV("personal");
         renderEmpleados();
     } else if (m === "historial") {

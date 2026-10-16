@@ -7,3 +7,10 @@
 
 # Los respaldos de la base de asistencia contienen la nomina completa.
 respaldos/
+
+# Capturas de prueba y archivos basura.
+/capturas/
+/test_otro_guardar.js
+
+# Config local del editor.
+/.vscode/

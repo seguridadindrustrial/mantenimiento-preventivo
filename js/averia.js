@@ -116,47 +116,33 @@ function enviarAveria(e) {
     const btnEnviar = document.getElementById("enviarAveriaBtn");
     btnEnviar.disabled = true;
 
-    // El POST de Apps Script responde con una redireccion sin cabeceras CORS, asi
-    // que la respuesta nunca se podia leer y el aviso de duplicado de abajo nunca
-    // salia. Ahora se pregunta antes por GET y se decide con eso.
-    verificarEnvioDuplicado({
-        tipo: "averia",
-        fecha: fecha,
-        hora: hora,
-        sedes: sedes,
-        zona: zona,
-        equipo: equipo,
-        descripcion: descripcion,
-        empleado: empleadoNombre
-    })
-    .then(function (duplicado) {
-        if (duplicado) {
-            averiaEnviando = false;
-            btnEnviar.disabled = false;
-            alert("Esta averia ya se habia reportado con los mismos datos en esta misma hora.\n\nNo se guardo otra vez.");
-            return;
-        }
-        return postJSON(registro).then(function () {
-            marcarEnviado(idUnico);
-            borrarCacheV("averias");
-            alert("Averia reportada correctamente.");
-            clearAveriaForm();
-            if (typeof notiRefrescar === "function") notiRefrescar(true);
-            if (typeof irAlInicio === "function" && usuarioActual) irAlInicio();
-            else {
-                document.getElementById("averiaForm").style.display = "none";
-                document.getElementById("loginSection").style.display = "block";
-                document.getElementById("codigoTecnico").value = "";
-            }
-            averiaEnviando = false;
-            btnEnviar.disabled = false;
+    // Envio inmediato: el POST de Apps Script responde sin cabeceras CORS, asi que
+    // su respuesta no se puede leer y esperarla solo retrasaba el aviso lo que
+    // tardara el servidor (subir fotos a Drive, crear avisos...). Se envia y se
+    // confirma al instante; el servidor, ademas, ya descarta los duplicados.
+    postJSON(registro);
+    marcarEnviado(idUnico);
+    borrarCacheV("averias");
+    alert("Averia reportada correctamente.");
+    clearAveriaForm();
+    if (typeof notiRefrescar === "function") notiRefrescar(true);
+    if (typeof refrescarAveriasHasta_ === "function") {
+        refrescarAveriasHasta_(function (arr) {
+            return arr.some(function (a) {
+                return String(a.empleado || "") === String(empleadoNombre || "") &&
+                    String(a.equipo || "") === String(equipo || "") &&
+                    String(a.descripcion || "") === String(descripcion || "");
+            });
         });
-    })
-    .catch(() => {
-        averiaEnviando = false;
-        btnEnviar.disabled = false;
-        alert("Error al enviar. Intenta de nuevo.");
-    });
+    }
+    if (typeof irAlInicio === "function" && usuarioActual) irAlInicio();
+    else {
+        document.getElementById("averiaForm").style.display = "none";
+        document.getElementById("loginSection").style.display = "block";
+        document.getElementById("codigoTecnico").value = "";
+    }
+    averiaEnviando = false;
+    btnEnviar.disabled = false;
 }
 
 function clearAveriaForm() {

@@ -659,6 +659,10 @@ function enviarFormulario(e) {
     });
 
     const registro = {
+        // El backend corta todo lo que no traiga "tipo". Los check-in viajaban
+        // solo con "rutina" y terminaban rechazados, pero como el POST es no-cors
+        // el tecnico recibia el mensaje de exito igual.
+        tipo: "checkin",
         id: idUnico,
         fecha: fecha,
         hora: hora,

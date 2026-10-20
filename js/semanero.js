@@ -267,6 +267,9 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
         }
 
         const registro = {
+            // Mismo caso que el check-in: sin "tipo" el backend lo rechaza y el
+            // tecnico igual ve el mensaje de exito porque el POST es no-cors.
+            tipo: "taller",
             id: idUnico,
             fecha: fecha,
             hora: hora,

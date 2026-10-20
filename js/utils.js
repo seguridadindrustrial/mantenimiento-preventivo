@@ -25,6 +25,20 @@ function postJSONRespuesta(body) {
     });
 }
 
+// Igual que postJSON pero con la respuesta legible. Se manda como text/plain
+// para que el navegador no dispare el preflight CORS, que Apps Script no
+// contesta. Sirve para confirmar con el servidor que el cambio si se aplico
+// antes de decirle al usuario que quedo guardado.
+function postJSONLeer(body) {
+    invalidarCacheV();
+    return fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); });
+}
+
 function ahoraHM() {
     var d = new Date();
     return (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes();

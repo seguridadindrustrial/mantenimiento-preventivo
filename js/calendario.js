@@ -165,22 +165,39 @@ function generarSemanaDesdeCalendario() {
     btn.textContent = "Generando...";
     document.getElementById("calendarioMsg").innerHTML = "";
 
-    postJSON({ tipo: "generar_semana", semana: semanaCalendarioActual });
-    borrarCacheV("tareas_semanales");
-    setTimeout(function () {
-        obtenerSemanaActualYAsignaciones();
-        btn.disabled = false;
-        btn.textContent = "Generar/Actualizar Semana";
-        document.getElementById("calendarioMsg").innerHTML =
-            '<div style="color:#2e7d32;font-weight:600;">Semana generada. Completa las asignaciones y guarda.</div>';
-    }, 3000);
+    // La respuesta si se lee: si no, el mensaje de exito salia aunque el
+    // backend ni siquiera tenia esta accion y no se guardaba nada.
+    postJSONLeer({ tipo: "generar_semana", semana: semanaCalendarioActual })
+        .then(function (r) {
+            btn.disabled = false;
+            btn.textContent = "Generar/Actualizar Semana";
+            if (!r || r.status !== "ok") {
+                mostrarMsgCalendario(false, (r && r.message) || "El servidor no genero la semana.");
+                return;
+            }
+            borrarCacheV("tareas_semanales");
+            obtenerSemanaActualYAsignaciones();
+            mostrarMsgCalendario(true,
+                "Semana generada con " + (r.equipos || 0) + " equipos (" +
+                (r.creadas || 0) + " nuevos). Completa las asignaciones y guarda.");
+        })
+        .catch(function () {
+            btn.disabled = false;
+            btn.textContent = "Generar/Actualizar Semana";
+            mostrarMsgCalendario(false, "No hubo respuesta del servidor. Revisa tu conexion e intentalo otra vez.");
+        });
+}
+
+function mostrarMsgCalendario(ok, texto) {
+    document.getElementById("calendarioMsg").innerHTML =
+        '<div style="color:' + (ok ? "#2e7d32" : "#d32f2f") + ';font-weight:600;">' +
+        escaparHTML(texto) + '</div>';
 }
 
 function guardarAsignacionesWeb() {
     var tabla = document.querySelector("#calendarioTabla table");
     if (!tabla) {
-        document.getElementById("calendarioMsg").innerHTML =
-            '<div style="color:#d32f2f;font-weight:600;">Primero genera/actualiza la semana.</div>';
+        mostrarMsgCalendario(false, "Primero genera/actualiza la semana.");
         return;
     }
 
@@ -197,16 +214,29 @@ function guardarAsignacionesWeb() {
         lista.push(mapa[eq]);
     }
 
+    if (lista.length === 0) {
+        mostrarMsgCalendario(false, "Primero genera/actualiza la semana.");
+        return;
+    }
+
     var btn = document.getElementById("btnGuardarAsignaciones");
     btn.disabled = true;
     btn.textContent = "Guardando...";
 
-    postJSON({ tipo: "guardar_asignaciones", semana: semanaCalendarioActual, asignaciones: lista });
-    borrarCacheV("tareas_semanales");
-    setTimeout(function () {
-        btn.disabled = false;
-        btn.textContent = "Guardar Asignaciones";
-        document.getElementById("calendarioMsg").innerHTML =
-            '<div style="color:#2e7d32;font-weight:600;">Asignaciones guardadas correctamente.</div>';
-    }, 2500);
+    postJSONLeer({ tipo: "guardar_asignaciones", semana: semanaCalendarioActual, asignaciones: lista })
+        .then(function (r) {
+            btn.disabled = false;
+            btn.textContent = "Guardar Asignaciones";
+            if (!r || r.status !== "ok") {
+                mostrarMsgCalendario(false, (r && r.message) || "El servidor no guardo las asignaciones.");
+                return;
+            }
+            borrarCacheV("tareas_semanales");
+            mostrarMsgCalendario(true, "Asignaciones guardadas correctamente (" + (r.guardadas || 0) + " equipos).");
+        })
+        .catch(function () {
+            btn.disabled = false;
+            btn.textContent = "Guardar Asignaciones";
+            mostrarMsgCalendario(false, "No hubo respuesta del servidor. No se guardo nada, intentalo otra vez.");
+        });
 }

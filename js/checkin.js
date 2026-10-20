@@ -1,5 +1,10 @@
 // checkin.js - Interfaz de rutinas / check-in (paso 2 y envio del formulario)
 
+// Comprobante de version: sin esta linea en la consola el navegador tiene la
+// copia vieja, la que enviaba el registro sin "tipo" y el backend lo tiraba
+// sin avisar. Casi todos los fallos de reportes empezaron aqui.
+console.log("[CHECKIN] v2026-10-20-tipo-checkin (el registro viaja con tipo:checkin)");
+
 var retrasoActivo = null;
 
 function hoyYMD() {

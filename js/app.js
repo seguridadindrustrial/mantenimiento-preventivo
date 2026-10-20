@@ -6002,5 +6002,5 @@ function notiSonar() {
 // Esta linea es el comprobante de version. Cuando algo "no me funciona" hay
 // que empezar por mirar que version esta cargada en la consola: casi todas las
 // veces resultaba ser una copia vieja que el navegador no habia soltado.
-// Si aqui no sale v2026-09-28-sesion, recargar sin cache.
-console.log("[APP] v2026-09-28-sesion (PIN condicional + sesion al refrescar)");
+// Si aqui no sale v2026-10-20-calendario, recargar sin cache.
+console.log("[APP] v2026-10-20-calendario (3 endpoints del calendario + exito confirmado por el servidor)");

@@ -170,6 +170,11 @@ function ocultarCampoPin() {
 // asi que nadie pierde uno de sus cinco por un simple teclear.
 var pinConsultaTimer = null;
 var pinUltimaCedula = "";
+// Ultima respuesta del servidor sobre ESTA cedula. Se acuerda aparte del numero
+// de cedula porque antes solo se guardaba "ya se pregunto": al salir del campo
+// (blur) el codigo volvia a mostrar el PIN sin volver a preguntar, y por eso
+// salia el campo de cualquier cedula aunque no tuviera PIN.
+var pinRequeridoUltimo = false;
 
 function consultarPinNecesario(enfocar) {
     var input = document.getElementById("codigoTecnico");
@@ -180,29 +185,40 @@ function consultarPinNecesario(enfocar) {
     // llevan PIN, y preguntar en cada tecla seria hacer trafico de sobra.
     if (!/^\d{6,}$/.test(ced)) { pinUltimaCedula = ""; return; }
     if (ced === pinUltimaCedula) {
-        // Ya se sabe, pero si el campo quedo escondido se vuelve a mostrar.
-        if (pinUltimaCedula === ced) {
+        // Ya se sabe. Solo se reabre el campo si la respuesta fue que esta
+        // cedula SI tiene PIN; si la respuesta fue que no, se queda escondido.
+        if (pinRequeridoUltimo) {
             var grupo = document.getElementById("loginPinGroup");
             if (grupo && grupo.style.display === "none") mostrarCampoPin(enfocar);
         }
         return;
     }
     pinUltimaCedula = ced;
+    // Mientras el servidor no conteste no se asume nada: si se queda el valor
+    // de la cedula anterior, un blur durante la consulta mostraria el campo
+    // con la respuesta vieja.
+    pinRequeridoUltimo = false;
 
     var preguntar = function (c, esReintento) {
-        fetch(APPS_SCRIPT_URL + "?accion=pin_necesario&cedula=" + encodeURIComponent(c))
+        return fetch(APPS_SCRIPT_URL + "?accion=pin_necesario&cedula=" + encodeURIComponent(c))
             .then(function (r) { return r.json(); })
             .then(function (r) {
                 // Igual que en el login: hay quien teclea un 2 de mas al final.
                 if (r && r.status === "not_found" && !esReintento && /2$/.test(ced)) {
                     return preguntar(ced.slice(0, -1), true);
                 }
-                if (r && r.status === "ok") {
-                    if (r.pinRequerido === true) {
-                        mostrarCampoPin(enfocar);
-                    } else if (document.activeElement !== document.getElementById("pinTecnico")) {
-                        ocultarCampoPin();
-                    }
+                // Vale solo la respuesta de la ultima pregunta hecha: si en el
+                // medio el usuario cambio de cedula, esta llega tarde.
+                if (pinUltimaCedula !== ced) return r;
+                var requiere = !!(r && r.status === "ok" && r.pinRequerido === true);
+                pinRequeridoUltimo = requiere;
+                if (requiere) {
+                    mostrarCampoPin(enfocar);
+                } else if (document.activeElement !== document.getElementById("pinTecnico")) {
+                    // not_found tambien entra aqui: una cedula que no existe
+                    // tampoco lleva PIN, y el campo podia quedar visible si venia
+                    // de otra cedula que si lo tenia.
+                    ocultarCampoPin();
                 }
                 return r;
             })
@@ -217,6 +233,7 @@ function consultarPinNecesario(enfocar) {
 function reiniciarConsultaPin() {
     if (pinConsultaTimer) { clearTimeout(pinConsultaTimer); pinConsultaTimer = null; }
     pinUltimaCedula = "";
+    pinRequeridoUltimo = false;
 }
 
 function mostrarIntentosRestantes(restantes) {

@@ -3,7 +3,7 @@
 // Comprobante de version: sin esta linea en la consola el navegador tiene la
 // copia vieja, la que enviaba el registro sin "tipo" y el backend lo tiraba
 // sin avisar. Casi todos los fallos de reportes empezaron aqui.
-console.log("[CHECKIN] v2026-10-20-tipo-checkin (el registro viaja con tipo:checkin)");
+console.log("[CHECKIN] v2026-10-27-respuestas (el resumen muestra todas las preguntas con su respuesta, incluidas las sin marcar)");
 
 var retrasoActivo = null;
 
@@ -788,10 +788,9 @@ function generarResumenMantenimiento(registro) {
     lineas.push("Actividades:");
     var keys = registro.checkinKeys || [];
     var values = registro.checkinValues || [];
-    for (var i = 0; i < keys.length && i < values.length; i++) {
-        if (values[i] === "Si" || values[i] !== "") {
-            lineas.push("- " + keys[i] + ": " + (values[i] || "-"));
-        }
+    for (var i = 0; i < keys.length; i++) {
+        var val = values[i];
+        lineas.push("- " + keys[i] + ": " + (val === null || val === undefined || val === "" ? "-" : val));
     }
     if (registro.descripcion) {
         lineas.push("");

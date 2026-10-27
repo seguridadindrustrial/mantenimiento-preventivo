@@ -2855,9 +2855,9 @@ function pintarHistorial() {
                   clave: m.clave,
                   zona: m.zona || "",
                   tipoReporte: m.tipoReporte || "",
-                  // Respuestas del check-in. El backend todavia no las devuelve,
-                  // pero si empieza a hacerlo (checkinKeys/checkinValues, pasos o
-                  // respuestas) el modal de pasos las muestra sin tocar nada mas.
+                  // Respuestas del check-in: el backend las devuelve en esta misma
+                  // fila (columna "Respuestas" de la hoja todo, en forma de
+                  // checkinKeys/checkinValues paralelos).
                   checkinKeys: m.checkinKeys || null,
                   checkinValues: m.checkinValues || null,
                   pasos: m.pasos || null,
@@ -2921,7 +2921,7 @@ function pintarHistorial() {
             btnPasos.type = "button";
             btnPasos.className = "btn-secondary";
             btnPasos.style.cssText = "font-size:0.72rem;padding:3px 8px;margin-top:4px;";
-            btnPasos.textContent = "Ver pasos";
+            btnPasos.textContent = respuestasDeRegistroHistorial(f).length ? "Ver respuestas" : "Ver pasos";
             btnPasos.onclick = (function (i) {
                 return function () { verPasosRutinaHistorial(i); };
             })(idxFila);
@@ -2975,8 +2975,8 @@ function registroTienePasosPosibles(f) {
 
 // Arma, a partir del catalogo local (data.js), la lista de pasos de la rutina
 // que se hizo en un registro del historial. Importante: esto son los PASOS
-// DEFINIDOS de la rutina, no las respuestas (Si/No) ni las cantidades que
-// reporto el tecnico: esas no las devuelve todavia el backend.
+// DEFINIDOS de la rutina, no lo que contesto el tecnico; esas respuestas llegan
+// en checkinKeys/checkinValues y se muestran aparte (respuestasDeRegistroHistorial).
 function pasosDeRegistroHistorial(f) {
     var actividad = String(f.detalle || "");
     var equipo = String(f.equipo || "");
@@ -3151,8 +3151,10 @@ function verPasosRutinaHistorial(indice) {
         });
         html += "</div>";
     }
-    if (r.pasos && r.pasos.length) {
-        html += '<div style="margin-top:10px;font-weight:700;">' + (respuestas.length ? "Pasos de la rutina" : "Pasos revisados en la rutina") + ' (' + r.pasos.length + '):</div>';
+    if (r.pasos && r.pasos.length && !respuestas.length) {
+        // Solo cuando no hay respuestas: con ellas en pantalla la lista de pasos
+        // definidos solo repetiria las mismas preguntas, sin dato nuevo.
+        html += '<div style="margin-top:10px;font-weight:700;">Pasos revisados en la rutina (' + r.pasos.length + '):</div>';
         html += '<div style="margin-top:4px;max-height:280px;overflow:auto;">';
         var n = 0;
         r.pasos.forEach(function (p) {
@@ -3188,7 +3190,7 @@ function verPasosRutinaHistorial(indice) {
     if (respuestas.length) {
         html += '<div style="margin-top:10px;color:#999;font-size:.78rem;">Respuestas reportadas por el tecnico.</div>';
     } else {
-        html += '<div style="margin-top:10px;color:#999;font-size:.78rem;">El servidor todavia no devuelve las respuestas (Si/No, cantidades). Estos son los pasos definidos de la rutina.</div>';
+        html += '<div style="margin-top:10px;color:#999;font-size:.78rem;">Este registro no guarda las respuestas (Si/No, cantidades): se envio antes de que se guardaran. Estos son los pasos definidos de la rutina.</div>';
     }
 
     if (info) info.innerHTML = html;
@@ -6357,5 +6359,5 @@ function notiSonar() {
 // Esta linea es el comprobante de version. Cuando algo "no me funciona" hay
 // que empezar por mirar que version esta cargada en la consola: casi todas las
 // veces resultaba ser una copia vieja que el navegador no habia soltado.
-// Si aqui no sale v2026-10-20-calendario, recargar sin cache.
-console.log("[APP] v2026-10-20-calendario (3 endpoints del calendario + exito confirmado por el servidor)");
+// Si aqui no sale v2026-10-27-respuestas-historial, recargar sin cache.
+console.log("[APP] v2026-10-27-respuestas-historial (el modal de pasos ahora tambien muestra lo que contesto el tecnico)");

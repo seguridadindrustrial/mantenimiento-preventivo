@@ -2690,7 +2690,7 @@ function pintarHistorial() {
             btnPasos.type = "button";
             btnPasos.className = "btn-secondary";
             btnPasos.style.cssText = "font-size:0.72rem;padding:3px 8px;margin-top:4px;";
-            btnPasos.textContent = "Ver pasos";
+            btnPasos.textContent = respuestasDeRegistroHistorial(f).length ? "Ver respuestas" : "Ver pasos";
             btnPasos.onclick = (function (i) {
                 return function () { verPasosRutinaHistorial(i); };
             })(idxFila);
@@ -2725,6 +2725,13 @@ function pintarHistorial() {
 // Indica (barato, sin resolver todo) si un registro del historial puede tener
 // pasos de rutina para mostrar. Evita poner el boton en averias/OT sin rutina.
 function registroTienePasosPosibles(f) {
+    // Si el registro ya trae respuestas del check-in, siempre se pueden mostrar,
+    // sin importar el tipo de reporte (cisterna, otro, etc.).
+    if (f && ((Array.isArray(f.checkinKeys) && f.checkinKeys.length) ||
+        (Array.isArray(f.pasos) && f.pasos.length) ||
+        (f.respuestas && typeof f.respuestas === "object" && Object.keys(f.respuestas).length))) {
+        return true;
+    }
     var tipo = String(f.tipoReporte || "").toLowerCase();
     if (tipo === "preventivo" || tipo === "correctivo" || tipo === "semanario") return true;
     var act = String(f.detalle || "").trim().toLowerCase();
@@ -5425,19 +5432,85 @@ function verReportesEmpleado(nombre) {
     cargarReportesEmpleado();
 }
 
+// Formato de fecha comparable (YYYY-MM-DD). El historial puede traer la fecha
+// como 2026-10-20 (cuando la hoja la guarda como fecha) o como 20/10/2026
+// (cuando quedo como texto). Los filtros de la pantalla siempre llegan como
+// YYYY-MM-DD desde el <input type="date">.
+function normalizarFechaYMD(f) {
+    var s = String(f == null ? "" : f).trim();
+    if (!s) return "";
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3];
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+    return s;
+}
+
 function cargarReportesEmpleado() {
     var cont = document.getElementById("repEmpLista");
     if (!cont || !empleadoReporteActual) return;
-    var desde = document.getElementById("repEmpDesde").value || "";
-    var hasta = document.getElementById("repEmpHasta").value || "";
-    var tipo = document.getElementById("repEmpTipo").value;
+    var desde = (document.getElementById("repEmpDesde") || {}).value || "";
+    var hasta = (document.getElementById("repEmpHasta") || {}).value || "";
+    var tipo = (document.getElementById("repEmpTipo") || {}).value || "todos";
     cont.innerHTML = '<div class="lista-vacia">Cargando reportes...</div>';
-    fetchJSON("reportes_empleado", { nombre: empleadoReporteActual, fechaDesde: desde, fechaHasta: hasta, tipo: tipo })
-        .then(function (data) {
-            pintarReportesEmpleado((data && data.reportes) || [], desde, hasta);
+
+    // Se arma desde el historial de mantenimientos porque es la consulta que ya
+    // devuelve las respuestas del check-in (pregunta -> respuesta). La accion
+    // "reportes_empleado" solo traia el encabezado, sin lo que contesto el
+    // tecnico, asi que los reportes salian sin la pregunta ni la respuesta.
+    fetchJSON("historial_mantenimientos", {}, { refresh: true })
+        .then(function (d) {
+            mantenimientosHistorial = (d && d.registros) || [];
+            mantenimientosHistorialCargados = true;
+            var nombre = String(empleadoReporteActual || "").trim();
+            var d0 = normalizarFechaYMD(desde);
+            var d1 = normalizarFechaYMD(hasta);
+            var t = String(tipo || "todos").toLowerCase();
+            var reportes = (mantenimientosHistorial || []).filter(function (m) {
+                var tec = String(m.tecnico || "").trim();
+                var ayu = String(m.ayudante || "").trim();
+                if (tec !== nombre && ayu !== nombre) return false;
+                var f = normalizarFechaYMD(m.fecha);
+                if (!f) return false;
+                if (d0 && f < d0) return false;
+                if (d1 && f > d1) return false;
+                var tr = String(m.tipoReporte || "otro").toLowerCase();
+                if (t !== "todos" && tr !== t) return false;
+                return true;
+            }).map(function (m) {
+                return {
+                    fecha: m.fecha || "",
+                    hora: m.hora || "",
+                    sede: m.sede || "",
+                    zona: m.zona || "",
+                    actividad: m.actividad || "",
+                    equipo: m.equipo || "",
+                    descripcion: m.descripcion || "",
+                    ayudante: m.ayudante || "",
+                    tipoReporte: m.tipoReporte || "otro",
+                    checkinKeys: m.checkinKeys || null,
+                    checkinValues: m.checkinValues || null,
+                    pasos: m.pasos || null,
+                    respuestas: m.respuestas || null,
+                    repuestos: m.repuestos || null,
+                    ayuda: m.ayuda || "",
+                    ayudaTecnicos: m.ayudaTecnicos || null,
+                    fila: m.fila,
+                    clave: m.clave
+                };
+            });
+            pintarReportesEmpleado(reportes, desde, hasta);
         })
         .catch(function () {
-            cont.innerHTML = '<div class="lista-vacia">Sin conexion. No se pudieron cargar los reportes.</div>';
+            // Si el historial no responde, se usa la consulta liviana de siempre
+            // para no dejar la pantalla vacia (aunque esa no trae respuestas).
+            fetchJSON("reportes_empleado", { nombre: empleadoReporteActual, fechaDesde: desde, fechaHasta: hasta, tipo: tipo }, { cacheMs: 0 })
+                .then(function (data) {
+                    pintarReportesEmpleado((data && data.reportes) || [], desde, hasta);
+                })
+                .catch(function () {
+                    cont.innerHTML = '<div class="lista-vacia">Sin conexion. No se pudieron cargar los reportes.</div>';
+                });
         });
 }
 
@@ -5482,11 +5555,44 @@ function pintarReportesEmpleado(reportes, desde, hasta) {
         '<span style="font-weight:700;">' + reportes.length + ' reporte' + (reportes.length === 1 ? "" : "s") + '</span>' + rango + chips + '</div>';
     ordenados.forEach(function (r) {
         var tipo = String(r.tipoReporte || "otro").toLowerCase();
+        // Preguntas y respuestas del check-in. Antes esta pantalla solo mostraba
+        // la descripcion, asi que no se veia que contesto el tecnico.
+        var paresResp = respuestasDeRegistroHistorial(r);
+        var respHtml = "";
+        if (paresResp.length) {
+            respHtml = '<div style="margin-top:6px;border-top:1px dashed #ddd;padding-top:6px;">' +
+                '<div style="font-size:.78rem;font-weight:700;color:#555;">Preguntas y respuestas (' + paresResp.length + ')</div>';
+            paresResp.forEach(function (rp) {
+                var v = String(rp.valor == null ? "" : rp.valor).trim();
+                var estilo = "color:#666;";
+                if (/^si$/i.test(v)) estilo = "color:#2e7d32;font-weight:700;";
+                else if (/^no$/i.test(v)) estilo = "color:#c62828;font-weight:700;";
+                respHtml += '<div style="display:flex;gap:8px;justify-content:space-between;font-size:.8rem;padding:2px 0;border-bottom:1px solid #f2f2f2;">' +
+                    '<span style="flex:1;">' + escaparHTML(rp.label || "") + '</span>' +
+                    '<span style="white-space:nowrap;' + estilo + '">' + escaparHTML(v || "-") + '</span></div>';
+            });
+            if (r.repuestos && r.repuestos.length) {
+                var reps = r.repuestos.map(function (x) {
+                    var nom = (x && (x.nombre || x.repuesto)) || "";
+                    var cant = (x && (x.cantidad || x.cant)) || "";
+                    return escaparHTML(nom) + (cant ? " x" + escaparHTML(String(cant)) : "");
+                }).filter(Boolean);
+                if (reps.length) respHtml += '<div style="font-size:.8rem;color:#555;margin-top:4px;">Repuestos: ' + reps.join(", ") + '</div>';
+            }
+            if (r.ayuda && /^si$/i.test(String(r.ayuda))) {
+                var apoyos = (r.ayudaTecnicos || []).map(function (x) {
+                    return typeof x === "string" ? x : (x && (x.nombre || x.tecnico)) || "";
+                }).filter(Boolean);
+                respHtml += '<div style="font-size:.8rem;color:#555;margin-top:2px;">Necesito apoyo: Si' + (apoyos.length ? " (" + escaparHTML(apoyos.join(", ")) + ")" : "") + '</div>';
+            }
+            respHtml += '</div>';
+        }
         html += '<div class="dash-card dash-card-trabajo">' +
             '<div style="flex:1;"><b>' + escaparHTML(r.actividad || "") + '</b>' +
             '<div style="color:#888;font-size:.8rem;">' + escaparHTML(formatearFechaHora(r.fecha || "", r.hora || "")) + ' | ' + escaparHTML(r.sede || "") + (r.zona ? ' / ' + escaparHTML(r.zona) : '') + (r.equipo ? ' | Equipo: ' + escaparHTML(r.equipo) : '') + '</div>' +
             (r.descripcion ? '<div style="color:#555;font-size:.8rem;margin-top:2px;white-space:pre-wrap;">' + escaparHTML(r.descripcion) + '</div>' : '') +
-            (r.ayudante ? '<div style="color:#888;font-size:.78rem;margin-top:2px;">Apoyo: ' + escaparHTML(r.ayudante) + '</div>' : '') + '</div>' +
+            (r.ayudante ? '<div style="color:#888;font-size:.78rem;margin-top:2px;">Apoyo: ' + escaparHTML(r.ayudante) + '</div>' : '') +
+            respHtml + '</div>' +
             '<span class="badge-frecuencia" style="' + (coloresTipo[tipo] || "") + '">' + escaparHTML(etiquetasTipo[tipo] || r.tipoReporte || "") + '</span></div>';
     });
     cont.innerHTML = html;

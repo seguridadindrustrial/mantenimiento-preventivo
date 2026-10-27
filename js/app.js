@@ -1334,6 +1334,237 @@ function recargarAsistencia() {
     vigilarMarcoAsistencia();
 }
 
+function normalizarValorHistorial(valor) {
+    if (valor === null || valor === undefined) return "";
+    if (typeof valor === "string") return valor.trim();
+    if (typeof valor === "number" || typeof valor === "boolean") return String(valor);
+    if (Array.isArray(valor)) return valor.join(", ");
+    if (typeof valor === "object") {
+        try {
+            return JSON.stringify(valor);
+        } catch (e) {
+            return String(valor);
+        }
+    }
+    return String(valor);
+}
+
+function extraerParesHistorial(registro) {
+    if (!registro || typeof registro !== "object") return [];
+    var pares = [];
+    var vistos = {};
+    var registrar = function (label, valor) {
+        if (!label) return;
+        var texto = normalizarValorHistorial(valor);
+        var clave = String(label).trim();
+        if (!clave) return;
+        if (!vistos[clave]) {
+            vistos[clave] = true;
+            pares.push({ label: clave, valor: texto });
+        } else if (texto) {
+            var idx = pares.findIndex(function (p) { return p.label === clave; });
+            if (idx !== -1) {
+                pares[idx].valor = pares[idx].valor ? (pares[idx].valor + ", " + texto) : texto;
+            }
+        }
+    };
+
+    if (Array.isArray(registro.checkinKeys) && Array.isArray(registro.checkinValues)) {
+        for (var i = 0; i < Math.min(registro.checkinKeys.length, registro.checkinValues.length); i++) {
+            registrar(registro.checkinKeys[i], registro.checkinValues[i]);
+        }
+    }
+
+    if (Array.isArray(registro.pasos)) {
+        registro.pasos.forEach(function (paso, idx) {
+            var label = "";
+            var valor = "";
+            if (typeof paso === "string") {
+                label = paso;
+            } else if (paso && typeof paso === "object") {
+                label = paso.label || paso.pregunta || paso.texto || paso.nombre || ("Paso " + (idx + 1));
+                valor = paso.respuesta !== undefined ? paso.respuesta
+                    : (paso.valor !== undefined ? paso.valor
+                        : (paso.value !== undefined ? paso.value : (paso.respuestaPaso !== undefined ? paso.respuestaPaso : "")));
+            }
+            registrar(label, valor);
+        });
+    }
+
+    if (Array.isArray(registro.checkings)) {
+        registro.checkings.forEach(function (item, idx) {
+            var label = item && typeof item === "object" ? (item.label || item.pregunta || item.nombre || ("Checking " + (idx + 1))) : item;
+            var valor = item && typeof item === "object" ? (item.respuesta !== undefined ? item.respuesta
+                : (item.valor !== undefined ? item.valor
+                    : (item.value !== undefined ? item.value : "")) ) : "";
+            registrar(label, valor);
+        });
+    }
+
+    var respuestasObjetos = [registro.respuestas, registro.preguntas, registro.checkingsRespuestas, registro.resultados];
+    respuestasObjetos.forEach(function (obj) {
+        if (!obj || typeof obj !== "object") return;
+        Object.keys(obj).forEach(function (key) {
+            var val = obj[key];
+            if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object") {
+                val.forEach(function (sub, idx) {
+                    var subLabel = sub && sub.label ? sub.label : (key + " " + (idx + 1));
+                    var subValor = sub && (sub.respuesta !== undefined ? sub.respuesta
+                        : (sub.valor !== undefined ? sub.valor
+                            : (sub.value !== undefined ? sub.value : "")));
+                    registrar(subLabel, subValor);
+                });
+                return;
+            }
+            registrar(key, val);
+        });
+    });
+
+    if (Array.isArray(registro.preguntas) || Array.isArray(registro.respuestas)) {
+        var listaPreg = Array.isArray(registro.preguntas) ? registro.preguntas : [];
+        var listaResp = Array.isArray(registro.respuestas) ? registro.respuestas : [];
+        var max = Math.max(listaPreg.length, listaResp.length);
+        for (var j = 0; j < max; j++) {
+            registrar(listaPreg[j] || ("Respuesta " + (j + 1)), listaResp[j]);
+        }
+    }
+
+    if (pares.length === 0 && (registro.descripcion || registro.observacion || registro.comentario)) {
+        registrar("Descripcion", registro.descripcion || registro.observacion || registro.comentario);
+    }
+
+    return pares;
+}
+
+function mostrarDetalleHistorial(indice) {
+    var reg = (historialFilasActuales || [])[indice];
+    if (!reg) return;
+    var pares = extraerParesHistorial(reg);
+    if (!pares.length) {
+        pares = [{ label: "Detalle", valor: "No hay preguntas o respuestas registradas para este reporte." }];
+    }
+
+    var existing = document.getElementById("modalDetalleHistorial");
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var modal = document.createElement("div");
+    modal.id = "modalDetalleHistorial";
+    modal.style.position = "fixed";
+    modal.style.inset = "0";
+    modal.style.background = "rgba(15,23,42,0.55)";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.zIndex = "2000";
+    modal.style.padding = "16px";
+
+    var card = document.createElement("div");
+    card.style.background = "#fff";
+    card.style.width = "min(720px, 100%)";
+    card.style.maxHeight = "80vh";
+    card.style.overflow = "auto";
+    card.style.borderRadius = "12px";
+    card.style.boxShadow = "0 20px 50px rgba(15,23,42,0.25)";
+    card.style.padding = "18px";
+
+    var title = document.createElement("h3");
+    title.textContent = "Detalle del reporte";
+    title.style.margin = "0 0 12px";
+    card.appendChild(title);
+
+    var meta = document.createElement("div");
+    meta.style.fontSize = "0.82rem";
+    meta.style.color = "#4b5563";
+    meta.style.marginBottom = "10px";
+    meta.innerHTML = "<strong>Fecha:</strong> " + (reg.fecha || "") + " &nbsp; <strong>Equipo:</strong> " + (reg.equipo || "") + " &nbsp; <strong>Tecnico:</strong> " + (reg.tecnico || "");
+    card.appendChild(meta);
+
+    var list = document.createElement("div");
+    list.style.display = "grid";
+    list.style.gap = "8px";
+
+    pares.forEach(function (p) {
+        var row = document.createElement("div");
+        row.style.display = "grid";
+        row.style.gridTemplateColumns = "minmax(180px, 1fr) minmax(200px, 2fr)";
+        row.style.gap = "10px";
+        row.style.padding = "8px 10px";
+        row.style.border = "1px solid #e5e7eb";
+        row.style.borderRadius = "8px";
+        row.style.background = "#f9fafb";
+
+        var label = document.createElement("div");
+        label.style.fontWeight = "600";
+        label.style.color = "#111827";
+        label.textContent = p.label || "Pregunta";
+
+        var value = document.createElement("div");
+        value.style.color = "#374151";
+        value.style.wordBreak = "break-word";
+        value.textContent = p.valor || "—";
+
+        row.appendChild(label);
+        row.appendChild(value);
+        list.appendChild(row);
+    });
+    card.appendChild(list);
+
+    var closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.textContent = "Cerrar";
+    closeBtn.style.marginTop = "14px";
+    closeBtn.style.border = "none";
+    closeBtn.style.borderRadius = "8px";
+    closeBtn.style.padding = "8px 14px";
+    closeBtn.style.background = "#2563eb";
+    closeBtn.style.color = "#fff";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.onclick = function () { modal.parentNode.removeChild(modal); };
+    card.appendChild(closeBtn);
+
+    modal.appendChild(card);
+    document.body.appendChild(modal);
+    modal.addEventListener("click", function (event) {
+        if (event.target === modal) {
+            modal.parentNode.removeChild(modal);
+        }
+    });
+}
+
+function cargarHistorial() {
+    var filtro = document.getElementById("historialFiltro") ? document.getElementById("historialFiltro").value : "todo";
+    var buscar = (document.getElementById("historialBuscar") || {}).value || "";
+    var tabla = document.getElementById("historialTabla");
+    if (!tabla) return;
+
+    tabla.innerHTML = "<div style='padding:14px;color:#666;'>Cargando historial...</div>";
+    fetch(APPS_SCRIPT_URL + "?accion=historial&filtro=" + encodeURIComponent(filtro) + "&buscar=" + encodeURIComponent(buscar))
+        .then(function (r) { return r.json(); })
+        .then(function (datos) {
+            var filas = Array.isArray(datos) ? datos : (datos && Array.isArray(datos.historial) ? datos.historial : []);
+            historialFilasActuales = filas;
+            if (!filas.length) {
+                tabla.innerHTML = "<div style='padding:14px;color:#666;'>No hay reportes para esta vista.</div>";
+                return;
+            }
+
+            var html = "<table class='tabla historial-tabla'><thead><tr><th>Fecha</th><th>Equipo</th><th>Sede</th><th>Tecnico</th><th>Tipo</th><th>Accion</th></tr></thead><tbody>";
+            filas.forEach(function (fila, idx) {
+                var fecha = fila.fecha || "";
+                var equipo = fila.equipo || "";
+                var sede = fila.sedes || fila.sede || "";
+                var tecnico = fila.tecnico || "";
+                var tipo = fila.rutina || fila.mantenimiento || fila.tipo || "Reporte";
+                html += "<tr><td>" + fecha + "</td><td>" + equipo + "</td><td>" + sede + "</td><td>" + tecnico + "</td><td>" + tipo + "</td><td><button type='button' class='btn-secondary' style='font-size:0.72rem;padding:3px 8px;margin-top:4px;' onclick=\"mostrarDetalleHistorial(" + idx + ")\">Ver pasos</button></td></tr>";
+            });
+            html += "</tbody></table>";
+            tabla.innerHTML = html;
+        })
+        .catch(function () {
+            tabla.innerHTML = "<div style='padding:14px;color:#d32f2f;'>No se pudo cargar el historial.</div>";
+        });
+}
+
 function navegar(modulo, desdeAtras) {
     if (modulo === "asistencia" && usuarioActual && !esPersonaAsistencia(usuarioActual.nombre)) {
         alert("El modulo Asistencia no esta disponible para tu usuario.");
@@ -2690,7 +2921,7 @@ function pintarHistorial() {
             btnPasos.type = "button";
             btnPasos.className = "btn-secondary";
             btnPasos.style.cssText = "font-size:0.72rem;padding:3px 8px;margin-top:4px;";
-            btnPasos.textContent = respuestasDeRegistroHistorial(f).length ? "Ver respuestas" : "Ver pasos";
+            btnPasos.textContent = "Ver pasos";
             btnPasos.onclick = (function (i) {
                 return function () { verPasosRutinaHistorial(i); };
             })(idxFila);
@@ -2906,8 +3137,8 @@ function verPasosRutinaHistorial(indice) {
     html += "<b>Actividad:</b> " + escaparHTML(f.detalle || "") + "<br>";
 
     if (respuestas.length) {
-        // Con respuestas: se muestra paso -> respuesta (lo que pidio el usuario).
-        html += '<div style="margin-top:10px;font-weight:700;">Respuestas de la rutina (' + respuestas.length + '):</div>';
+        // Con respuestas: se muestra pregunta/paso -> respuesta.
+        html += '<div style="margin-top:10px;font-weight:700;">Preguntas y respuestas (' + respuestas.length + '):</div>';
         html += '<div style="margin-top:4px;max-height:300px;overflow:auto;">';
         respuestas.forEach(function (rp) {
             var v = String(rp.valor == null ? "" : rp.valor).trim();
@@ -2919,8 +3150,9 @@ function verPasosRutinaHistorial(indice) {
                 '<span style="white-space:nowrap;' + estilo + '">' + escaparHTML(v || "-") + '</span></div>';
         });
         html += "</div>";
-    } else if (r.pasos && r.pasos.length) {
-        html += '<div style="margin-top:10px;font-weight:700;">Pasos revisados en la rutina (' + r.pasos.length + '):</div>';
+    }
+    if (r.pasos && r.pasos.length) {
+        html += '<div style="margin-top:10px;font-weight:700;">' + (respuestas.length ? "Pasos de la rutina" : "Pasos revisados en la rutina") + ' (' + r.pasos.length + '):</div>';
         html += '<div style="margin-top:4px;max-height:280px;overflow:auto;">';
         var n = 0;
         r.pasos.forEach(function (p) {

@@ -1,5 +1,10 @@
 // semanero.js - Interfaz de semanero y taller
 
+// Comprobante de version: si en la consola no sale esta linea, el navegador
+// tiene la copia vieja, la que se saltaba en silencio un Tanques ya enviado y
+// nunca avisaba de que el registro no habia llegado al Excel.
+console.log("[SEMANERO] v2026-10-27-tanques (un Tanques marcado como enviado se puede reenviar, no se salta en silencio)");
+
 function toggleTallerTask(btn) {
     const row = btn.parentElement;
     row.querySelectorAll(".toggle-btn").forEach(b => {
@@ -218,7 +223,16 @@ function enviarTaller(sedes, fecha, hora, zona, mantenimiento, descripcion) {
             }
 
             var idTanques = generarIdUnico(fecha, hora, sedes, "Tanques", tecnicoNombre);
-            if (!yaEnviado(idTanques)) {
+            // El marcador local se pone antes del envio y el backend llegaba a
+            // tirar la fila cuando no se pedia cisterna: el Tanques quedaba como
+            // "ya enviado" en el telefono sin haber llegado nunca al Excel, y ya
+            // no habia forma de reenviarlo. Si esta marcado, se pregunta.
+            var enviarTanques = !yaEnviado(idTanques) || confirm(
+                "Este Tanques ya se envio desde este telefono.\n\n" +
+                "¿Enviar otra vez para que quede en el Excel?\n" +
+                "Aceptar lo envia de nuevo; Cancelar lo deja como esta."
+            );
+            if (enviarTanques) {
                 marcarEnviado(idTanques);
                 saveToLocalStorage({
                     id: idTanques,

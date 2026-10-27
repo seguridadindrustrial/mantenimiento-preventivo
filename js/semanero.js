@@ -491,8 +491,12 @@ function getSemanarioRuicesValues() {
                 if (!campoEl) { respuestas[campo.label] = ""; return; }
                 const active = campoEl.querySelector(".semanario-toggle .active-si, .semanario-toggle .active-no");
                 if (!active) { respuestas[campo.label] = ""; return; }
+                // "No" tambien es una respuesta: antes se guardaba vacio y el
+                // backend descarta los vacios, asi que en el reporte solo
+                // aparecian los campos con numero o seleccion. Se guarda tal
+                // cual para que el historial muestre pregunta y respuesta.
                 if (active.dataset.value === "No") {
-                    respuestas[campo.label] = "";
+                    respuestas[campo.label] = "No";
                     return;
                 }
                 const inp = campoEl.querySelector(".semanario-number-input, .semanario-select");
@@ -609,6 +613,7 @@ function enviarSemanarioRuices(sedes, fecha, hora, zona, descripcion) {
     });
 
     if (!hayDatosCampos) {
+        alert("No marcaste ninguna opcion del semanario de RUICES. Si llenaste Tanques, esa seccion ya se envio.");
         clearForm();
         return;
     }
